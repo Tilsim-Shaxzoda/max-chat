@@ -8,14 +8,22 @@ const multer = require('multer');
 const https = require('https');
 
 // --- SOZLAMALAR ---
-const TELEGRAM_BOT_TOKEN = '8338280465:AAFTlVRorrQNpaHnJEQjX6ynRM-rg5EhEGk'; // <-- O'Z TOKENINGIZNI YOZING
+// Tokeningizni shu yerga qo'ydim
+const TELEGRAM_BOT_TOKEN = '8338280465:AAFTlVRorrQNpaHnJEQjX6ynRM-rg5EhEGk'; 
 const MY_TELEGRAM_ID = '1178814024';
 
-// Fayl yuklash
+// --- MUHIM: Serverda uploads papkasi yo'q bo'lsa, yaratamiz ---
+if (!fs.existsSync('uploads')) {
+    fs.mkdirSync('uploads');
+    console.log("Uploads papkasi yaratildi!");
+}
+
+// Fayl yuklash sozlamalari
 const storage = multer.diskStorage({
     destination: (req, file, cb) => cb(null, 'uploads/'),
     filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
 });
+
 const upload = multer({ storage: storage });
 
 app.use(express.static('public'));
@@ -26,9 +34,9 @@ const USERS = { 'mura': 'shaxzoda', 'max': 'qiyshiq_qalam' };
 let onlineUsers = {}; 
 let lastSeen = { 'mura': null, 'max': null };
 
-// Telegramga xabar yuborish
+// Telegramga xabar yuborish funksiyasi
 function sendTelegramNotification(text) {
-    if (TELEGRAM_BOT_TOKEN === 'BOT_TOKENI_SHU_YERGA_YOZING') return;
+    if (!TELEGRAM_BOT_TOKEN || TELEGRAM_BOT_TOKEN === '8338280465:AAFTlVRorrQNpaHnJEQjX6ynRM-rg5EhEGk') return;
     
     const data = JSON.stringify({ chat_id: MY_TELEGRAM_ID, text: text });
     
@@ -43,7 +51,11 @@ function sendTelegramNotification(text) {
         }
     };
 
-    const req = https.request(options, (res) => {});
+    const req = https.request(options, (res) => {
+        // Javobni shart emas, lekin xato chiqsa bilish uchun:
+        res.on('data', () => {});
+    });
+    
     req.on('error', (e) => console.error('Telegram Xato:', e));
     req.write(data);
     req.end();
@@ -59,7 +71,15 @@ app.post('/login', (req, res) => {
 });
 
 app.post('/upload', upload.single('file'), (req, res) => {
-    if(req.file) res.json({ filename: req.file.filename, type: req.file.mimetype, originalName: req.file.originalname });
+    if(req.file) {
+        res.json({ 
+            filename: req.file.filename, 
+            type: req.file.mimetype, 
+            originalName: req.file.originalname 
+        });
+    } else {
+        res.status(400).json({ error: "Fayl yuklanmadi" });
+    }
 });
 
 function getHistory() {
