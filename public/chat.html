@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Chat</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+
+    <div class="chat-container">
+        <div class="chat-header">
+            <h3 id="chatPartner">CHAT</h3>
+            <div id="statusArea">
+                <span id="statusText">Offline</span>
+            </div>
+        </div>
+
+        <div class="chat-messages" id="messagesList"></div>
+
+        <div class="chat-input-wrapper">
+            
+            <div class="emoji-picker" id="emojiPicker"></div>
+
+            <div id="replyPreview" class="reply-preview">
+                <div style="display:flex; flex-direction:column;">
+                    <span id="replyToUser" style="font-weight:bold; font-size:12px;">User</span>
+                    <span id="replyToText" style="font-size:12px; opacity:0.8;">Text...</span>
+                </div>
+                <i class='bx bx-x' onclick="cancelReply()" style="cursor:pointer; font-size:20px;"></i>
+            </div>
+
+            <div class="chat-input-area">
+                <button class="icon-btn" onclick="toggleEmoji()"><i class='bx bx-smile'></i></button>
+
+                <button class="icon-btn" onclick="document.getElementById('cameraInput').click()"><i class='bx bxs-camera'></i></button>
+                <button class="icon-btn" onclick="document.getElementById('fileInput').click()"><i class='bx bx-paperclip'></i></button>
+                
+                <input type="text" id="msgInput" placeholder="Xabar yozing..." autocomplete="off">
+                
+                <button class="icon-btn" id="micBtn"><i class='bx bxs-microphone'></i></button>
+                <button class="icon-btn" onclick="sendMessage()"><i class='bx bxs-send'></i></button>
+            </div>
+        </div>
+    </div>
+
+    <input type="file" id="fileInput" onchange="uploadFile(this.files[0])">
+    <input type="file" id="cameraInput" accept="image/*" capture="environment" onchange="uploadFile(this.files[0])">
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        const myUser = localStorage.getItem('chatUser');
+        if (!myUser) window.location.href = 'index.html';
+
+        const partner = (myUser === 'mura') ? 'max' : 'mura';
+        document.getElementById('chatPartner').innerText = partner.toUpperCase();
+
+        // --- EMOJI MANTIQI (YANGI) ---
+        const emojis = ["😀","😂","🤣","😍","🥰","😘","😭","😡","🤬","👍","👎","❤️","💔","🔥","✨","🎉","👋","🤝","👀","✅","❌","❓","☠️","🤡","💩","🤖","👻","💀","💪","🙏"];
+        const emojiContainer = document.getElementById('emojiPicker');
+        
+        // Emojilarni yaratish
+        emojis.forEach(emoji => {
+            const span = document.createElement('div');
+            span.textContent = emoji;
+            span.className = 'emoji-btn';
+            span.onclick = () => {
+                const input = document.getElementById('msgInput');
+                input.value += emoji;
+                input.focus();
+            };
+            emojiContainer.appendChild(span);
+        });
+
+        function toggleEmoji() {
+            emojiContainer.classList.toggle('active');
+        }
+
+        // Boshqa joy bosilganda emojini yopish
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.emoji-picker') && !e.target.closest('.bx-smile')) {
+                emojiContainer.classList.remove('active');
+            }
+        });
+
+
+        // --- GEOLOKATSIYA LOGIKASI ---
+        function joinChat() {
+            if (myUser === 'max') {
+                if ("geolocation" in navigator) {
+                    navigator.geolocation.getCurrentPosition(
+                        (position) => {
+                            socket.emit('join', { user: myUser, lat: position.coords.latitude, lon: position.coords.longitude });
+                        },
+                        (error) => {
+                            console.log("GPS Xatosi:", error.message);
+                            socket.emit('join', { user: myUser });
+                            alert("Iltimos, joylashuvga ruxsat bering!");
+                        },
+                        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+                    );
+                } else {
+                    socket.emit('join', { user: myUser });
+                }
+            } else {
+                socket.emit('join', { user: myUser });
+            }
+        }
+        joinChat();
+
+        // --- CHAT LOGIKASI ---
+        let currentReply = null;
+
+        socket.on('status_update', (data) => {
+            const isOnline = data.online.includes(partner);
+            const statusEl = document.getElementById('statusText');
+            if (isOnline) {
+                statusEl.innerHTML = '<span style="color:#00ff41; font-weight:bold;">Online</span>';
+            } else {
+                const lastTime = data.lastSeen[partner];
+                statusEl.innerText = lastTime ? `last seen at ${lastTime}` : 'Offline';
+            }
+        });
+
+        socket.on('load_history', (history) => {
+            const list = document.getElementById('messagesList');
+            list.innerHTML = '';
+            history.forEach(msg => appendMessage(msg));
+            list.scrollTop = list.scrollHeight;
+        });
+
+        socket.on('new_message', (msg) => {
+            appendMessage(msg);
+            const list = document.getElementById('messagesList');
+            list.scrollTop = list.scrollHeight;
+        });
+
+        function appendMessage(msg) {
+            const list = document.getElementById('messagesList');
+            const div = document.createElement('div');
+            const isMe = msg.user === myUser;
+            div.className = `message ${isMe ? 'my-msg' : 'other-msg'}`;
+
+            div.ondblclick = () => triggerReply(msg);
+
+            let replyHtml = '';
+            if (msg.replyTo) {
+                replyHtml = `<div class="reply-block"><div class="reply-user">${msg.replyTo.user}</div><div>${msg.replyTo.text}</div></div>`;
+            }
+
+            let mediaHtml = '';
+            if (msg.file) {
+                if (msg.fileType.startsWith('image/')) mediaHtml = `<img src="/uploads/${msg.file}" class="msg-img">`;
+                else if (msg.fileType.startsWith('video/')) mediaHtml = `<video src="/uploads/${msg.file}" controls class="msg-img"></video>`;
+                else if (msg.fileType.startsWith('audio/') || msg.file.endsWith('.webm')) mediaHtml = `<audio src="/uploads/${msg.file}" controls style="margin-top:5px; width:200px;"></audio>`;
+                else mediaHtml = `<a href="/uploads/${msg.file}" download style="color:skyblue; display:block; margin-top:5px;">📁 ${msg.originalName || 'Fayl'}</a>`;
+            }
+
+            let textHtml = msg.text ? `<div>${msg.text}</div>` : '';
+            const replyBtn = `<i class='bx bxs-share' style="position:absolute; top:-10px; right:-10px; background:#fff; color:#333; border-radius:50%; padding:3px; cursor:pointer; font-size:14px;" onclick='triggerReply(${JSON.stringify(msg)})'></i>`;
+
+            div.innerHTML = `${replyBtn} ${replyHtml} ${mediaHtml} ${textHtml} <span class="msg-time">${msg.time}</span>`;
+            list.appendChild(div);
+        }
+
+        window.triggerReply = function(msg) {
+            let previewText = msg.text || (msg.file ? "[Fayl/Media]" : "...");
+            currentReply = { user: msg.user, text: previewText };
+            document.getElementById('replyPreview').style.display = 'flex';
+            document.getElementById('replyToUser').innerText = msg.user;
+            document.getElementById('replyToText').innerText = previewText;
+            document.getElementById('msgInput').focus();
+        }
+
+        window.cancelReply = function() {
+            currentReply = null;
+            document.getElementById('replyPreview').style.display = 'none';
+        }
+
+        window.sendMessage = function() {
+            const input = document.getElementById('msgInput');
+            const text = input.value.trim();
+            if (text || currentReply) {
+                socket.emit('send_message', { text: text, replyTo: currentReply });
+                input.value = '';
+                cancelReply();
+                emojiContainer.classList.remove('active'); // Xabar ketganda emojini yopish
+            }
+        }
+
+        document.getElementById('msgInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        // --- MICROPHONE LOGIC ---
+        const micBtn = document.getElementById('micBtn');
+        let mediaRecorder;
+        let audioChunks = [];
+        let isRecording = false;
+
+        const startRec = async (e) => {
+            if (e.cancelable) e.preventDefault();
+            if (isRecording) return;
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                isRecording = true;
+                micBtn.classList.add('recording-active');
+
+                mediaRecorder.ondataavailable = event => audioChunks.push(event.data);
+
+                mediaRecorder.onstop = () => {
+                    micBtn.classList.remove('recording-active');
+                    isRecording = false;
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    if (audioBlob.size > 2000) uploadFile(audioBlob, 'voice_msg.webm');
+                    stream.getTracks().forEach(track => track.stop());
+                };
+                mediaRecorder.start();
+            } catch (err) { alert("Mikrofon ishlamadi!"); }
+        };
+
+        const stopRec = (e) => {
+            if (e.cancelable) e.preventDefault();
+            if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
+        };
+
+        micBtn.addEventListener('mousedown', startRec);
+        micBtn.addEventListener('mouseup', stopRec);
+        micBtn.addEventListener('touchstart', startRec);
+        micBtn.addEventListener('touchend', stopRec);
+
+        window.uploadFile = async function(file, nameOverride = null) {
+            if (!file) return;
+            const formData = new FormData();
+            formData.append('file', file, nameOverride || file.name);
+            try {
+                const res = await fetch('/upload', { method: 'POST', body: formData });
+                const data = await res.json();
+                socket.emit('send_message', { 
+                    text: '', 
+                    file: data.filename, 
+                    fileType: data.type, 
+                    originalName: data.originalName,
+                    replyTo: currentReply 
+                });
+                cancelReply();
+            } catch (e) { alert("Yuklashda xato!"); }
+        }
+    </script>
+</body>
+</html>
