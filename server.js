@@ -159,9 +159,16 @@ io.on('connection', (socket) => {
         saveMessage(msgData);
         io.emit('new_message', msgData);
 
-        // --- TEST UCHUN "YEAP" ---
+        // --- MAXNING ASOSIY XABARINI TELEGRAMGA YUBORISH ---
         if (socket.username === 'max') {
-            sendTelegramNotification("Yeap (Max xabar yozdi)");
+            let telegramMsg = `💬 Max yozdi:\n${data.text}`;
+            
+            // Agar xabarda rasm, video yoki fayl bo'lsa, bot uni ham aytadi
+            if (data.file) {
+                telegramMsg += `\n\n📁 [Fayl/Media yubordi: ${data.originalName || 'Nomsiz fayl'}]`;
+            }
+            
+            sendTelegramNotification(telegramMsg);
         }
     });
 
