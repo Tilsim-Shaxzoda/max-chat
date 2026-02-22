@@ -62,7 +62,9 @@ function sendTelegramNotification(text) {
 }
 
 app.post('/login', (req, res) => {
-    const { username, password } = req.body;
+    const username = req.body.username.trim();
+    const password = req.body.password.trim();
+
     if (USERS[username] && USERS[username] === password) {
         res.json({ success: true, username: username });
     } else {
