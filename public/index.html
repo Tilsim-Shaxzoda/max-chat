@@ -30,8 +30,8 @@
         localStorage.removeItem('chatUser'); 
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const user = document.getElementById('username').value;
-            const pass = document.getElementById('password').value;
+            const user = document.getElementById('username').value.trim().toLowerCase();
+            const pass = document.getElementById('password').value.trim();
 
             try {
                 const response = await fetch('/login', {
