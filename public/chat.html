@@ -145,6 +145,12 @@
 
             div.ondblclick = () => triggerReply(msg);
 
+            // 1-YANGILIK: Kim yozganini ko'rsatuvchi ism (faqat sherik yozgan bo'lsa)
+            let senderNameHtml = '';
+            if (!isMe && msg.user) {
+                senderNameHtml = `<div style="font-size: 11px; font-weight: bold; color: #64b5ef; margin-bottom: 3px;">${msg.user.toUpperCase()}</div>`;
+            }
+
             let replyHtml = '';
             if (msg.replyTo) {
                 replyHtml = `<div class="reply-block"><div class="reply-user">${msg.replyTo.user}</div><div>${msg.replyTo.text}</div></div>`;
@@ -161,10 +167,11 @@
             let textHtml = msg.text ? `<div>${msg.text}</div>` : '';
             const replyBtn = `<i class='bx bxs-share' style="position:absolute; top:-10px; right:-10px; background:#fff; color:#333; border-radius:50%; padding:3px; cursor:pointer; font-size:14px;" onclick='triggerReply(${JSON.stringify(msg)})'></i>`;
 
-            div.innerHTML = `${replyBtn} ${replyHtml} ${mediaHtml} ${textHtml} <span class="msg-time">${msg.time}</span>`;
+            // HTML ga senderNameHtml qo'shildi
+            div.innerHTML = `${replyBtn} ${senderNameHtml} ${replyHtml} ${mediaHtml} ${textHtml} <span class="msg-time">${msg.time}</span>`;
             list.appendChild(div);
         }
-
+        
         window.triggerReply = function(msg) {
             let previewText = msg.text || (msg.file ? "[Fayl/Media]" : "...");
             currentReply = { user: msg.user, text: previewText };
