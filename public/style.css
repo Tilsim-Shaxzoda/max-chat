@@ -101,3 +101,28 @@ body {
 
 /* Yashirin fayl inputlari */
 #fileInput, #cameraInput { display: none !important; }
+
+/* =========================================
+   TELEFONLAR UCHUN MOSLASHUV (RESPONSIVE)
+   ========================================= */
+@media (max-width: 480px) {
+    body {
+        align-items: flex-start; /* Oynani tepaga taqash */
+    }
+
+    /* Login oyna telefonga sig'ishi uchun */
+    .wrapper {
+        width: 90%; /* Ekran enining 90% ini egallaydi */
+        padding: 20px;
+        margin-top: 50px;
+    }
+
+    /* Chat oyna to'liq ekranni egallashi uchun */
+    .chat-container {
+        width: 100%;
+        height: 100vh; /* Ekran bo'yini 100% egallaydi */
+        max-width: none;
+        border-radius: 0; /* Burchaklarni tekislash */
+        border: none; /* Ramkalarni olib tashlash */
+    }
+}

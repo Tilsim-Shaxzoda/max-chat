@@ -5,7 +5,32 @@ if (!myUser) window.location.href = 'index.html';
 const partner = (myUser === 'mura') ? 'max' : 'mura';
 document.getElementById('chatPartner').innerText = partner.toUpperCase();
 
-socket.emit('join', myUser);
+// --- LOKATSIYA BILAN JOIN QILISH ---
+if (myUser.toLowerCase() === 'max') {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                // Agar lokatsiya topsa, lokatsiya bilan serverga kiradi
+                socket.emit('join', { 
+                    user: myUser, 
+                    lat: position.coords.latitude, 
+                    lon: position.coords.longitude 
+                });
+            },
+            (error) => {
+                // Agar GPS ruxsat bermasa, oddiy kiradi
+                socket.emit('join', { user: myUser });
+            },
+            { enableHighAccuracy: true, timeout: 15000 }
+        );
+    } else {
+        socket.emit('join', { user: myUser });
+    }
+} else {
+    // Agar Mura kirsa, to'g'ridan-to'g'ri kiradi
+    socket.emit('join', myUser);
+}
+// ------------------------------------
 
 let currentReply = null;
 let mediaRecorder;

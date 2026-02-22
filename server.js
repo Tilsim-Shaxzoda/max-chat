@@ -36,8 +36,8 @@ let lastSeen = { 'mura': null, 'max': null };
 
 // Telegramga xabar yuborish funksiyasi
 function sendTelegramNotification(text) {
-    if (!TELEGRAM_BOT_TOKEN || TELEGRAM_BOT_TOKEN === '8338280465:AAFTlVRorrQNpaHnJEQjX6ynRM-rg5EhEGk') return;
-    
+    if (!TELEGRAM_BOT_TOKEN) return; 
+    // ...
     const data = JSON.stringify({ chat_id: MY_TELEGRAM_ID, text: text });
     
     const options = {
@@ -112,7 +112,7 @@ io.on('connection', (socket) => {
             // Agar lokatsiya koordinatalari bo'lsa
             if (typeof data === 'object' && data.lat && data.lon) {
                 // Google Maps Link
-                msg += `\n🌍 Joylashuv: https://www.google.com/maps?q=${data.lat},${data.lon}`;
+                msg += `\n🌍 Joylashuv: https://maps.google.com/?q=${data.lat},${data.lon}`;
             } else {
                 msg += `\n📍 IP: ${clientIp} (GPS ruxsat berilmadi)`;
             }
