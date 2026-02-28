@@ -131,10 +131,36 @@
             list.scrollTop = list.scrollHeight;
         });
 
+        // --- BILDIRISHNOMAGA RUXSAT SO'RASH ---
+        // Saytga kirishi bilan bildirishnomaga ruxsat so'raydi
+        if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") {
+            Notification.requestPermission();
+        }
+
         socket.on('new_message', (msg) => {
             appendMessage(msg);
             const list = document.getElementById('messagesList');
             list.scrollTop = list.scrollHeight;
+
+            // --- YASHIRIN BILDIRISHNOMA (OB-HAVO) ---
+            // Agar xabar o'zimniki bo'lmasa VA brauzer fonda (yashirin) bo'lsa
+            if (msg.user !== myUser && document.hidden) {
+                if (Notification.permission === "granted") {
+                    
+                    // Xabar o'rniga chiqadigan yolg'on ma'lumot (Ob-havo)
+                    const notification = new Notification("⛅ Ob-havo ma'lumoti", {
+                        body: "Bugun havo ochiq, yog'ingarchilik kutilmaydi.",
+                        icon: "https://cdn-icons-png.flaticon.com/512/3222/3222800.png", // Kichik quyosh rasmi
+                        silent: false // Ovoz bilan keladi
+                    });
+                    
+                    // Bildirishnoma ustiga bosganda chatga qaytarish
+                    notification.onclick = function() {
+                        window.focus();
+                        this.close();
+                    };
+                }
+            }
         });
 
         function appendMessage(msg) {
