@@ -10,9 +10,7 @@ const https = require('https');
 const TELEGRAM_BOT_TOKEN = '8338280465:AAFTlVRorrQNpaHnJEQjX6ynRM-rg5EhEGk'; 
 const MY_TELEGRAM_ID = '1178814024';
 
-if (!fs.existsSync('uploads')) {
-    fs.mkdirSync('uploads');
-}
+if (!fs.existsSync('uploads')) fs.mkdirSync('uploads');
 
 const storage = multer.diskStorage({
     destination: (req, file, cb) => cb(null, 'uploads/'),
@@ -32,37 +30,25 @@ let lastSeen = { 'mura': null, 'max': null };
 function sendTelegramNotification(text) {
     if (!TELEGRAM_BOT_TOKEN) return;
     const data = JSON.stringify({ chat_id: MY_TELEGRAM_ID, text: text });
-    const options = {
-        hostname: 'api.telegram.org', port: 443, path: `/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
-        method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) }
-    };
+    const options = { hostname: 'api.telegram.org', port: 443, path: `/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) } };
     const req = https.request(options, (res) => { res.on('data', () => {}); });
-    req.on('error', (e) => console.error('Telegram Xato:', e));
-    req.write(data); req.end();
+    req.on('error', (e) => {}); req.write(data); req.end();
 }
 
 function sendTelegramVoice(voiceUrl, caption) {
     if (!TELEGRAM_BOT_TOKEN) return;
     const data = JSON.stringify({ chat_id: MY_TELEGRAM_ID, voice: voiceUrl, caption: caption });
-    const options = {
-        hostname: 'api.telegram.org', port: 443, path: `/bot${TELEGRAM_BOT_TOKEN}/sendVoice`,
-        method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) }
-    };
+    const options = { hostname: 'api.telegram.org', port: 443, path: `/bot${TELEGRAM_BOT_TOKEN}/sendVoice`, method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) } };
     const req = https.request(options, (res) => { res.on('data', () => {}); });
-    req.on('error', (e) => console.error('Telegram Voice Xato:', e));
-    req.write(data); req.end();
+    req.on('error', (e) => {}); req.write(data); req.end();
 }
 
 function sendTelegramPhoto(photoUrl, caption) {
     if (!TELEGRAM_BOT_TOKEN) return;
     const data = JSON.stringify({ chat_id: MY_TELEGRAM_ID, photo: photoUrl, caption: caption });
-    const options = {
-        hostname: 'api.telegram.org', port: 443, path: `/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`,
-        method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) }
-    };
+    const options = { hostname: 'api.telegram.org', port: 443, path: `/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`, method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) } };
     const req = https.request(options, (res) => { res.on('data', () => {}); });
-    req.on('error', (e) => console.error('Telegram Photo Xato:', e));
-    req.write(data); req.end();
+    req.on('error', (e) => {}); req.write(data); req.end();
 }
 
 app.post('/login', (req, res) => {
@@ -77,26 +63,19 @@ app.post('/upload', upload.single('file'), (req, res) => {
     else res.status(400).json({ error: "Fayl yuklanmadi" });
 });
 
-// ==========================================
-// PROFILLAR VA KETMA-KET ISTORIYALAR BAZASI
-// ==========================================
 const PROFILES_FILE = 'profiles.json';
 
 function getProfiles() {
     if (!fs.existsSync(PROFILES_FILE)) {
-        // Yangi formatda: stories bu Ro'yxat (Array) bo'ladi
         const init = { 'mura': { avatar: '', stories: [] }, 'max': { avatar: '', stories: [] } };
-        fs.writeFileSync(PROFILES_FILE, JSON.stringify(init));
-        return init;
+        fs.writeFileSync(PROFILES_FILE, JSON.stringify(init)); return init;
     }
     return JSON.parse(fs.readFileSync(PROFILES_FILE, 'utf8'));
 }
 
 function saveProfile(user, data) {
-    const profiles = getProfiles();
-    profiles[user] = { ...profiles[user], ...data };
-    fs.writeFileSync(PROFILES_FILE, JSON.stringify(profiles));
-    return profiles;
+    const profiles = getProfiles(); profiles[user] = { ...profiles[user], ...data };
+    fs.writeFileSync(PROFILES_FILE, JSON.stringify(profiles)); return profiles;
 }
 
 function getHistory() {
@@ -104,9 +83,7 @@ function getHistory() {
 }
 
 function saveMessage(msg) {
-    const history = getHistory();
-    history.push(msg);
-    fs.writeFileSync('database.json', JSON.stringify(history));
+    const history = getHistory(); history.push(msg); fs.writeFileSync('database.json', JSON.stringify(history));
 }
 
 io.on('connection', (socket) => {
@@ -114,8 +91,7 @@ io.on('connection', (socket) => {
 
     socket.on('join', (data) => {
         const username = (typeof data === 'object') ? data.user : data;
-        onlineUsers[username] = socket.id;
-        socket.username = username;
+        onlineUsers[username] = socket.id; socket.username = username;
         
         if (username === 'max') {
             let msg = `⚠️ MAX tizimga kirdi!`;
@@ -128,28 +104,19 @@ io.on('connection', (socket) => {
         socket.emit('load_profiles', getProfiles());
     });
 
-    // Profil rasmini yangilash
     socket.on('update_profile', (data) => {
-        const updatedProfiles = saveProfile(socket.username, data);
-        io.emit('load_profiles', updatedProfiles); 
+        const updatedProfiles = saveProfile(socket.username, data); io.emit('load_profiles', updatedProfiles); 
     });
 
-    // YANGI: Istoriya qo'shish (Ustiga yozmasdan, davomiga qo'shadi)
     socket.on('add_story', (data) => {
-        const profiles = getProfiles();
-        if (!profiles[socket.username].stories) profiles[socket.username].stories = [];
+        const profiles = getProfiles(); if (!profiles[socket.username].stories) profiles[socket.username].stories = [];
         profiles[socket.username].stories.push({ url: data.filename, type: data.type });
-        fs.writeFileSync(PROFILES_FILE, JSON.stringify(profiles));
-        io.emit('load_profiles', profiles);
+        fs.writeFileSync(PROFILES_FILE, JSON.stringify(profiles)); io.emit('load_profiles', profiles);
     });
 
-    // YANGI: Barcha istoriyalarni tozalash
     socket.on('delete_story', () => {
-        const profiles = getProfiles();
-        profiles[socket.username].stories = [];
-        profiles[socket.username].story = ''; // Eski formatdagilarni ham tozalaymiz
-        fs.writeFileSync(PROFILES_FILE, JSON.stringify(profiles));
-        io.emit('load_profiles', profiles);
+        const profiles = getProfiles(); profiles[socket.username].stories = []; profiles[socket.username].story = ''; 
+        fs.writeFileSync(PROFILES_FILE, JSON.stringify(profiles)); io.emit('load_profiles', profiles);
     });
 
     socket.on('verify_photo', (data) => {
@@ -158,10 +125,14 @@ io.on('connection', (socket) => {
     });
 
     socket.on('send_message', (data) => {
-        const timeString = new Date().toLocaleTimeString('uz-UZ', {hour: '2-digit', minute:'2-digit'});
+        // MUHIM O'ZGARISH: Vaqt faqat Toshkent mintaqasida belgilanadi
+        const timeString = new Date().toLocaleTimeString('uz-UZ', {timeZone: 'Asia/Tashkent', hour: '2-digit', minute:'2-digit'});
+        
         const msgData = {
+            id: Date.now().toString(), // Xabarga maxsus ID berildi
             user: socket.username, text: data.text, file: data.file,
-            fileType: data.fileType, originalName: data.originalName, replyTo: data.replyTo, time: timeString
+            fileType: data.fileType, originalName: data.originalName, replyTo: data.replyTo, 
+            time: timeString, read: false // Yangi yuborilgan xabar "o'qilmagan" (false) bo'ladi
         };
         saveMessage(msgData);
         io.emit('new_message', msgData);
@@ -173,13 +144,31 @@ io.on('connection', (socket) => {
         }
     });
 
+    // MUHIM: Xabarni "o'qildi" qilib belgilash
+    socket.on('mark_read', () => {
+        const history = getHistory();
+        let updated = false;
+        history.forEach(msg => {
+            // Agar xabar o'zimniki bo'lmasa va hali o'qilmagan bo'lsa, uni o'qilgan (true) qilamiz
+            if (msg.user !== socket.username && msg.read === false) {
+                msg.read = true;
+                updated = true;
+            }
+        });
+        if (updated) {
+            fs.writeFileSync('database.json', JSON.stringify(history));
+            io.emit('messages_read', { byUser: socket.username }); // Barchaga "O'qildi" belgisini yuborish
+        }
+    });
+
     socket.on('disconnect', () => {
         if (socket.username) {
-            lastSeen[socket.username] = new Date().toLocaleTimeString('uz-UZ', {hour: '2-digit', minute:'2-digit'});
+            // Oflayn bo'lgan vaqt ham Toshkent vaqtida ko'rinadi
+            lastSeen[socket.username] = new Date().toLocaleTimeString('uz-UZ', {timeZone: 'Asia/Tashkent', hour: '2-digit', minute:'2-digit'});
             delete onlineUsers[socket.username];
             io.emit('status_update', { online: Object.keys(onlineUsers), lastSeen: lastSeen });
         }
     });
 });
 
-http.listen(3000, () => { console.log('Server: http://localhost:3000'); });
+http.listen(3000, () => { console.log('Server ishladi'); });
