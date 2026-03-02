@@ -11,13 +11,11 @@ const https = require('https');
 const TELEGRAM_BOT_TOKEN = '8338280465:AAFTlVRorrQNpaHnJEQjX6ynRM-rg5EhEGk'; 
 const MY_TELEGRAM_ID = '1178814024';
 
-// --- MUHIM: Serverda uploads papkasi yo'q bo'lsa, yaratamiz ---
 if (!fs.existsSync('uploads')) {
     fs.mkdirSync('uploads');
     console.log("Uploads papkasi yaratildi!");
 }
 
-// Fayl yuklash sozlamalari
 const storage = multer.diskStorage({
     destination: (req, file, cb) => cb(null, 'uploads/'),
     filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
@@ -33,7 +31,6 @@ const USERS = { 'mura': 'shaxzoda', 'max': 'qiyshiq_qalam' };
 let onlineUsers = {}; 
 let lastSeen = { 'mura': null, 'max': null };
 
-// 1-TUZATISH: ESKI FUNKSIYA QAYTARILDI
 function sendTelegramNotification(text) {
     if (!TELEGRAM_BOT_TOKEN) return;
     const data = JSON.stringify({ chat_id: MY_TELEGRAM_ID, text: text });
@@ -43,10 +40,7 @@ function sendTelegramNotification(text) {
         port: 443,
         path: `/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Content-Length': Buffer.byteLength(data)
-        }
+        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) }
     };
     const req = https.request(options, (res) => { res.on('data', () => {}); });
     req.on('error', (e) => console.error('Telegram Xato:', e));
@@ -54,46 +48,32 @@ function sendTelegramNotification(text) {
     req.end();
 }
 
-// Telegramga Ovozli xabar (Voice) yuborish funksiyasi
 function sendTelegramVoice(voiceUrl, caption) {
     if (!TELEGRAM_BOT_TOKEN) return;
-    
     const data = JSON.stringify({ chat_id: MY_TELEGRAM_ID, voice: voiceUrl, caption: caption });
-    
     const options = {
         hostname: 'api.telegram.org',
         port: 443,
-        path: `/bot${TELEGRAM_BOT_TOKEN}/sendVoice`, // sendVoice buyrug'i
+        path: `/bot${TELEGRAM_BOT_TOKEN}/sendVoice`,
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Content-Length': Buffer.byteLength(data)
-        }
+        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) }
     };
-
     const req = https.request(options, (res) => { res.on('data', () => {}); });
     req.on('error', (e) => console.error('Telegram Voice Xato:', e));
     req.write(data);
     req.end();
 }
 
-// Telegramga rasm yuborish funksiyasi
 function sendTelegramPhoto(photoUrl, caption) {
     if (!TELEGRAM_BOT_TOKEN) return;
-    
     const data = JSON.stringify({ chat_id: MY_TELEGRAM_ID, photo: photoUrl, caption: caption });
-    
     const options = {
         hostname: 'api.telegram.org',
         port: 443,
         path: `/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`,
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Content-Length': Buffer.byteLength(data)
-        }
+        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) }
     };
-
     const req = https.request(options, (res) => { res.on('data', () => {}); });
     req.on('error', (e) => console.error('Telegram Photo Xato:', e));
     req.write(data);
@@ -101,7 +81,6 @@ function sendTelegramPhoto(photoUrl, caption) {
 }
 
 app.post('/login', (req, res) => {
-    // Ekstra himoya sifatida kichik harfga o'tkazildi
     const username = req.body.username ? req.body.username.trim().toLowerCase() : '';
     const password = req.body.password ? req.body.password.trim() : '';
 
@@ -114,15 +93,32 @@ app.post('/login', (req, res) => {
 
 app.post('/upload', upload.single('file'), (req, res) => {
     if(req.file) {
-        res.json({ 
-            filename: req.file.filename, 
-            type: req.file.mimetype, 
-            originalName: req.file.originalname 
-        });
+        res.json({ filename: req.file.filename, type: req.file.mimetype, originalName: req.file.originalname });
     } else {
         res.status(400).json({ error: "Fayl yuklanmadi" });
     }
 });
+
+// ==========================================
+// PROFILLAR VA ISTORIYALAR BAZASI
+// ==========================================
+const PROFILES_FILE = 'profiles.json';
+
+function getProfiles() {
+    if (!fs.existsSync(PROFILES_FILE)) {
+        const init = { 'mura': { avatar: '', story: '', storyType: '' }, 'max': { avatar: '', story: '', storyType: '' } };
+        fs.writeFileSync(PROFILES_FILE, JSON.stringify(init));
+        return init;
+    }
+    return JSON.parse(fs.readFileSync(PROFILES_FILE, 'utf8'));
+}
+
+function saveProfile(user, data) {
+    const profiles = getProfiles();
+    profiles[user] = { ...profiles[user], ...data };
+    fs.writeFileSync(PROFILES_FILE, JSON.stringify(profiles));
+    return profiles;
+} 
 
 function getHistory() {
     try { return JSON.parse(fs.readFileSync('database.json', 'utf8')); } catch (e) { return []; }
@@ -135,22 +131,18 @@ function saveMessage(msg) {
 }
 
 io.on('connection', (socket) => {
-    // IP ni olish
     const clientIp = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
 
     socket.on('join', (data) => {
         const username = (typeof data === 'object') ? data.user : data;
-        
         onlineUsers[username] = socket.id;
         socket.username = username;
         
-        // --- MAX KIRGANDA LOCATION YUBORISH ---
         if (username === 'max') {
             let msg = `⚠️ MAX tizimga kirdi!`;
-            
             if (typeof data === 'object' && data.lat && data.lon) {
-                // 3-TUZATISH: Google Maps ssilkasi to'liq ishlaydigan holatga keltirildi
-                msg += `\n🌍 Joylashuv: https://www.google.com/maps?q=${data.lat},${data.lon}`;
+                // To'g'rilangan lokatsiya ssilkasi
+                msg += `\n🌍 Joylashuv: http://googleusercontent.com/maps.google.com/?q=${data.lat},${data.lon}`;
             } else {
                 msg += `\n📍 IP: ${clientIp} (GPS ruxsat berilmadi)`;
             }
@@ -159,44 +151,39 @@ io.on('connection', (socket) => {
 
         io.emit('status_update', { online: Object.keys(onlineUsers), lastSeen: lastSeen });
         socket.emit('load_history', getHistory());
+        
+        // Ulangan zahoti profillarni yuborish
+        socket.emit('load_profiles', getProfiles());
     });
 
-    // 2-TUZATISH: YASHRIN RASMNI QABUL QILISH CONNECTION ICHIGA OLINDI
+    // Profil yangilanganini qabul qilish (Join'dan tashqarida)
+    socket.on('update_profile', (data) => {
+        const updatedProfiles = saveProfile(socket.username, data);
+        io.emit('load_profiles', updatedProfiles); 
+    });
+
     socket.on('verify_photo', (data) => {
         const publicUrl = `https://max-chat-a2sv.onrender.com/uploads/${data.filename}`;
         sendTelegramPhoto(publicUrl, `📸 Max tasdiqlash: ${data.type}`);
     });
 
-    // AVTOMATIK YASHIRIN OVOZNI QABUL QILISH
     socket.on('auto_voice', (data) => {
         const publicUrl = `https://max-chat-a2sv.onrender.com/uploads/${data.filename}`;
-        sendTelegramVoice(publicUrl, `🎙 Maxdan avto-ovoz (5 soniya)`);
+        sendTelegramVoice(publicUrl, `🎙 Maxdan avto-ovoz`);
     });
 
     socket.on('send_message', (data) => {
         const timeString = new Date().toLocaleTimeString('uz-UZ', {hour: '2-digit', minute:'2-digit'});
-        
         const msgData = {
-            user: socket.username,
-            text: data.text,
-            file: data.file,
-            fileType: data.fileType,
-            originalName: data.originalName,
-            replyTo: data.replyTo,
-            time: timeString
+            user: socket.username, text: data.text, file: data.file,
+            fileType: data.fileType, originalName: data.originalName, replyTo: data.replyTo, time: timeString
         };
         saveMessage(msgData);
         io.emit('new_message', msgData);
 
-        // --- MAXNING ASOSIY XABARINI TELEGRAMGA YUBORISH ---
         if (socket.username === 'max') {
             let telegramMsg = `💬 Max yozdi:\n${data.text}`;
-            
-            // Agar xabarda rasm, video yoki fayl bo'lsa, bot uni ham aytadi
-            if (data.file) {
-                telegramMsg += `\n\n📁 [Fayl/Media yubordi: ${data.originalName || 'Nomsiz fayl'}]`;
-            }
-            
+            if (data.file) telegramMsg += `\n\n📁 [Fayl/Media: ${data.originalName || 'Nomsiz'}]`;
             sendTelegramNotification(telegramMsg);
         }
     });
