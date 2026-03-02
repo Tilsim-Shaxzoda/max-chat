@@ -1,106 +1,53 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Chatga Kirish</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            display: flex; justify-content: center; align-items: center;
-            height: 100vh; margin: 0; background: #2c3e50; color: white;
-        }
-        .login-container {
-            background: #34495e; padding: 30px; border-radius: 10px;
-            text-align: center; width: 300px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-        }
-        input {
-            width: 90%; padding: 10px; margin: 10px 0;
-            border: none; border-radius: 5px; outline: none;
-        }
-        button {
-            width: 95%; padding: 10px; margin-top: 10px;
-            border: none; border-radius: 5px; cursor: pointer;
-            font-weight: bold; transition: 0.3s;
-        }
-        .btn-primary { background: #3498db; color: white; }
-        .btn-secondary { background: #e67e22; color: white; }
-        .btn-primary:hover { background: #2980b9; }
-        
-        .toggle-text {
-            margin-top: 15px; font-size: 14px; cursor: pointer;
-            color: #bdc3c7; text-decoration: underline;
-        }
-    </style>
+    <meta charset="UTF-8" />
+    <title>LOGIN FORM ||</title>
+    <link rel="stylesheet" href="./style.css" />
+    <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet" />
 </head>
 <body>
-
-    <div class="login-container">
-        <h2 id="formTitle">KIRISH</h2>
-        <input type="text" id="username" placeholder="Login (Ismingiz)">
-        <input type="password" id="password" placeholder="Parol">
-        
-        <button class="btn-primary" id="actionBtn" onclick="handleAuth()">KIRISH</button>
-        
-        <p class="toggle-text" onclick="toggleMode()" id="toggleBtn">Ro'yxatdan o'tish</p>
-        <p id="errorMsg" style="color: #e74c3c; font-size: 13px; margin-top: 10px;"></p>
+    <div class="wrapper">
+        <form id="loginForm">
+            <h1>Login</h1>
+            <div class="input-box">
+                <input type="text" id="username" placeholder="Username" required />
+                <i class="bx bxs-user"></i>
+            </div>
+            <div class="input-box">
+                <input type="password" id="password" placeholder="Password" required />
+                <i class="bx bxs-lock-alt"></i>
+            </div>
+            <div class="remember-forgot">
+                <label><input type="checkbox" />Remember me </label>
+                <a href="#">Forgot password?</a>
+            </div>
+            <button type="submit" class="btn">Login</button>
+        </form>
     </div>
 
     <script>
-        let isLoginMode = true;
-
-        function toggleMode() {
-            isLoginMode = !isLoginMode;
-            const title = document.getElementById('formTitle');
-            const btn = document.getElementById('actionBtn');
-            const toggle = document.getElementById('toggleBtn');
-            const error = document.getElementById('errorMsg');
-
-            if (isLoginMode) {
-                title.innerText = "KIRISH";
-                btn.innerText = "KIRISH";
-                btn.className = "btn-primary";
-                toggle.innerText = "Ro'yxatdan o'tish";
-            } else {
-                title.innerText = "RO'YXATDAN O'TISH";
-                btn.innerText = "YARATISH";
-                btn.className = "btn-secondary";
-                toggle.innerText = "Menda akkaunt bor (Kirish)";
-            }
-            error.innerText = "";
-        }
-
-        async function handleAuth() {
-            const user = document.getElementById('username').value.trim();
+        localStorage.removeItem('chatUser'); 
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const user = document.getElementById('username').value.trim().toLowerCase();
             const pass = document.getElementById('password').value.trim();
-            const errorEl = document.getElementById('errorMsg');
-
-            if (!user || !pass) {
-                errorEl.innerText = "Iltimos, login va parolni yozing!";
-                return;
-            }
-
-            const endpoint = isLoginMode ? '/login' : '/register';
 
             try {
-                const res = await fetch(endpoint, {
+                const response = await fetch('/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username: user, password: pass })
                 });
-
-                const data = await res.json();
-
+                const data = await response.json();
                 if (data.success) {
                     localStorage.setItem('chatUser', data.username);
-                    window.location.href = 'chat.html';
+                    window.location.href = '/chat.html';
                 } else {
-                    errorEl.innerText = data.message || "Xatolik yuz berdi";
+                    alert('Login yoki parol xato!');
                 }
-            } catch (e) {
-                errorEl.innerText = "Server bilan aloqa yo'q!";
-            }
-        }
+            } catch (err) { alert('Server bilan aloqa yo\'q!'); }
+        });
     </script>
 </body>
 </html>
