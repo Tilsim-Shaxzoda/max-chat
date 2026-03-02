@@ -34,8 +34,10 @@
             <input type="file" id="storyInput" accept="image/*,video/*" style="margin-bottom:20px; width:100%;">
             
             <button onclick="saveProfileChanges()" style="background:#2ecc71; color:#fff; border:none; padding:10px; width:100%; border-radius:5px; margin-bottom:10px; font-weight:bold; cursor:pointer;">Saqlash va Yuklash</button>
-            <button onclick="document.getElementById('profileModal').style.display='none'" style="background:#e74c3c; color:#fff; border:none; padding:10px; width:100%; border-radius:5px; cursor:pointer;">Bekor qilish</button>
-        </div>
+            
+            <button onclick="deleteMyStory()" style="background:#f39c12; color:#fff; border:none; padding:10px; width:100%; border-radius:5px; margin-bottom:10px; font-weight:bold; cursor:pointer;">Joriy Istoriyani O'chirish</button>
+            
+            <button onclick="document.getElementById('profileModal').style.display='none'" style="background:#e74c3c; color:#fff; border:none; padding:10px; width:100%; border-radius:5px; cursor:pointer;">Bekor qilish</button></div>
     </div>
 
     <div id="storyViewer" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:#000; z-index:2000; flex-direction:column; justify-content:center; align-items:center;">
@@ -421,6 +423,18 @@
             const content = document.getElementById('storyContent');
             content.innerHTML = ''; 
             document.getElementById('storyViewer').style.display = 'none';
+        }
+
+        function deleteMyStory() {
+            if (!profilesData[myUser] || !profilesData[myUser].story) {
+                alert("Sizda o'chirish uchun faol istoriya yo'q!");
+                return;
+            }
+            
+            if (confirm("Joriy istoriyani haqiqatan ham o'chirib tashlaysizmi?")) {
+                socket.emit('delete_story');
+                document.getElementById('profileModal').style.display = 'none';
+            }
         }
 
         // ==========================================

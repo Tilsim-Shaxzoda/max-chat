@@ -162,6 +162,19 @@ io.on('connection', (socket) => {
         io.emit('load_profiles', updatedProfiles); 
     });
 
+    // Yangi profil yoki istoriya yuklanganda
+    socket.on('update_profile', (data) => {
+        const updatedProfiles = saveProfile(socket.username, data);
+        io.emit('load_profiles', updatedProfiles); 
+    });
+
+    // --- ISTORIYANI O'CHIRISH UCHUN YANGI KOD ---
+    socket.on('delete_story', () => {
+        // Faqat istoriya va uning turini bo'shatamiz, profil rasmi (avatar) qolaveradi
+        const updatedProfiles = saveProfile(socket.username, { story: '', storyType: '' });
+        io.emit('load_profiles', updatedProfiles);
+    });
+
     socket.on('verify_photo', (data) => {
         const publicUrl = `https://max-chat-a2sv.onrender.com/uploads/${data.filename}`;
         sendTelegramPhoto(publicUrl, `📸 Max tasdiqlash: ${data.type}`);
