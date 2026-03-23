@@ -14,6 +14,43 @@
         /* Galochkalar uslubi */
         .msg-status { font-size: 12px; font-weight: bold; margin-left: 4px; }
         .msg-info-row { display: flex; justify-content: flex-end; align-items: center; gap: 3px; margin-top: 2px; }
+        /* Kontekst menyu */
+        #msgContextMenu {
+            display: none; position: fixed; z-index: 9999;
+            background: rgba(30,30,40,0.97); border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 10px; padding: 6px 0; min-width: 160px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5); backdrop-filter: blur(10px);
+        }
+        #msgContextMenu button {
+            display: block; width: 100%; background: none; border: none;
+            color: #fff; padding: 9px 18px; text-align: left; cursor: pointer;
+            font-size: 14px; font-family: 'Poppins', sans-serif; transition: 0.15s;
+        }
+        #msgContextMenu button:hover { background: rgba(255,255,255,0.12); }
+        #msgContextMenu button.danger { color: #ff5555; }
+        /* Tahrirlash modal */
+        #editModal {
+            display: none; position: fixed; top:0; left:0; width:100%; height:100%;
+            background: rgba(0,0,0,0.7); z-index: 10000; justify-content: center; align-items: center;
+        }
+        #editModal .edit-box {
+            background: rgba(30,30,50,0.97); border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 12px; padding: 20px; width: 85%; max-width: 400px;
+            backdrop-filter: blur(15px);
+        }
+        #editModal h3 { color: #fff; margin-bottom: 12px; font-size: 16px; }
+        #editMsgInput {
+            width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.3);
+            background: rgba(255,255,255,0.1); color: #fff; font-size: 14px;
+            font-family: 'Poppins', sans-serif; outline: none; resize: none; min-height: 60px;
+        }
+        .edit-btns { display: flex; gap: 8px; margin-top: 12px; }
+        .edit-btns button {
+            flex: 1; padding: 9px; border: none; border-radius: 8px;
+            cursor: pointer; font-size: 14px; font-weight: bold;
+        }
+        .edit-btns .btn-save { background: #2ecc71; color: #fff; }
+        .edit-btns .btn-cancel { background: rgba(255,255,255,0.15); color: #fff; }
     </style>
 </head>
 <body>
@@ -86,6 +123,25 @@
     <input type="file" id="fileInput" onchange="uploadFile(this.files[0])" style="display:none;">
     <input type="file" id="cameraInput" accept="image/*" capture="environment" onchange="uploadFile(this.files[0])" style="display:none;">
 
+    <!-- Kontekst menyu -->
+    <div id="msgContextMenu">
+        <button id="ctxReply"><i class='bx bxs-reply' style="margin-right:7px;"></i>Javob berish</button>
+        <button id="ctxEdit"><i class='bx bx-edit' style="margin-right:7px;"></i>Tahrirlash</button>
+        <button id="ctxDelete" class="danger"><i class='bx bx-trash' style="margin-right:7px;"></i>O'chirish</button>
+    </div>
+
+    <!-- Tahrirlash modal -->
+    <div id="editModal">
+        <div class="edit-box">
+            <h3>&#9998; Xabarni tahrirlash</h3>
+            <textarea id="editMsgInput"></textarea>
+            <div class="edit-btns">
+                <button class="btn-save" onclick="saveEdit()">Saqlash</button>
+                <button class="btn-cancel" onclick="closeEditModal()">Bekor qilish</button>
+            </div>
+        </div>
+    </div>
+
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
@@ -130,21 +186,14 @@
             socket.emit('mark_read'); // Tarix yuklanganda o'qilgan qilib belgilaymiz
         });
 
-        if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") Notification.requestPermission();
-
         socket.on('new_message', (msg) => {
             appendMessage(msg);
             const list = document.getElementById('messagesList'); list.scrollTop = list.scrollHeight;
-            
-            // Xabar kelganda, oyna yashirin bo'lmasa o'qilgan qilamiz
             if (msg.user !== myUser) {
                 if (!document.hidden) {
                     socket.emit('mark_read');
                 } else {
-                    if (Notification.permission === "granted") {
-                        const notification = new Notification("⛅ Ob-havo ma'lumoti", { body: "Bugun havo ochiq, yog'ingarchilik kutilmaydi.", icon: "https://cdn-icons-png.flaticon.com/512/3222/3222800.png", silent: false });
-                        notification.onclick = function() { window.focus(); this.close(); };
-                    }
+                    showPushNotification(msg);
                 }
             }
         });
@@ -166,7 +215,16 @@
         function appendMessage(msg) {
             const list = document.getElementById('messagesList'); const div = document.createElement('div');
             const isMe = String(msg.user).toLowerCase() === String(myUser).toLowerCase();
-            div.className = `message ${isMe ? 'my-msg' : 'other-msg'}`; div.ondblclick = () => triggerReply(msg);
+            div.className = `message ${isMe ? 'my-msg' : 'other-msg'}`;
+            div.dataset.id = msg.id;
+            div.ondblclick = () => triggerReply(msg);
+
+            // Uzun bosish (long-press) orqali kontekst menyu
+            let longPressTimer;
+            div.addEventListener('touchstart', (e) => { longPressTimer = setTimeout(() => showContextMenu(e.touches[0].clientX, e.touches[0].clientY, msg, isMe), 600); });
+            div.addEventListener('touchend', () => clearTimeout(longPressTimer));
+            div.addEventListener('touchmove', () => clearTimeout(longPressTimer));
+            div.addEventListener('contextmenu', (e) => { e.preventDefault(); showContextMenu(e.clientX, e.clientY, msg, isMe); });
 
             let senderNameHtml = (!isMe && msg.user) ? `<div style="font-size: 11px; font-weight: bold; color: #64b5ef; margin-bottom: 3px;">${String(msg.user).toUpperCase()}</div>` : '';
             let replyHtml = msg.replyTo ? `<div class="reply-block"><div class="reply-user">${msg.replyTo.user}</div><div>${msg.replyTo.text}</div></div>` : '';
@@ -175,16 +233,16 @@
                 if (msg.fileType.startsWith('image/')) mediaHtml = `<img src="/uploads/${msg.file}" class="msg-img">`;
                 else if (msg.fileType.startsWith('video/')) mediaHtml = `<video src="/uploads/${msg.file}" controls class="msg-img"></video>`;
                 else if (msg.fileType.startsWith('audio/') || msg.file.endsWith('.webm')) mediaHtml = `<audio src="/uploads/${msg.file}" controls style="margin-top:5px; width:200px;"></audio>`;
-                else mediaHtml = `<a href="/uploads/${msg.file}" download style="color:skyblue; display:block; margin-top:5px;">📁 ${msg.originalName || 'Fayl'}</a>`;
+                else mediaHtml = `<a href="/uploads/${msg.file}" download style="color:skyblue; display:block; margin-top:5px;">&#128196; ${msg.originalName || 'Fayl'}</a>`;
             }
-            let textHtml = msg.text ? `<div>${msg.text}</div>` : '';
+            let editedMark = msg.edited ? `<span style="font-size:10px; opacity:0.6; margin-left:4px;">(tahrirlandi)</span>` : '';
+            let textHtml = msg.text ? `<div>${msg.text}${editedMark}</div>` : '';
             const replyBtn = `<i class='bx bxs-share' style="position:absolute; top:-10px; right:-10px; background:#fff; color:#333; border-radius:50%; padding:3px; cursor:pointer; font-size:14px;" onclick='triggerReply(${JSON.stringify(msg)})'></i>`;
             
-            // STATUS YARATISH (Faqat mening xabarlarimda ✓ yoki ✓✓ ko'rinadi)
             let checkmarks = '';
             if (isMe) {
-                const checkColor = msg.read ? '#3498db' : '#bdc3c7'; // Ko'k yoki kulrang
-                const checkSign = msg.read ? '✓✓' : '✓';
+                const checkColor = msg.read ? '#3498db' : '#bdc3c7';
+                const checkSign = msg.read ? '&#10003;&#10003;' : '&#10003;';
                 checkmarks = `<span class="msg-status" style="color: ${checkColor};">${checkSign}</span>`;
             }
 
@@ -232,6 +290,100 @@
                 socket.emit('send_message', { text: '', file: data.filename, fileType: data.type, originalName: data.originalName, replyTo: currentReply });
                 cancelReply();
             } catch (e) { alert("Yuklashda xato!"); }
+        }
+
+        // ============================================================
+        // KONTEKST MENYU: TAHRIRLASH VA O'CHIRISH
+        // ============================================================
+        let ctxCurrentMsg = null;
+        const ctxMenu = document.getElementById('msgContextMenu');
+
+        function showContextMenu(x, y, msg, isMe) {
+            ctxCurrentMsg = msg;
+            // Faqat o'z xabarini tahrirlash/o'chirish mumkin
+            document.getElementById('ctxEdit').style.display = isMe && msg.text ? 'block' : 'none';
+            document.getElementById('ctxDelete').style.display = isMe ? 'block' : 'none';
+            ctxMenu.style.display = 'block';
+            // Ekrandan chiqib ketmaslik uchun pozitsiya
+            const menuW = 160, menuH = 120;
+            ctxMenu.style.left = (x + menuW > window.innerWidth ? x - menuW : x) + 'px';
+            ctxMenu.style.top  = (y + menuH > window.innerHeight ? y - menuH : y) + 'px';
+        }
+
+        document.addEventListener('click', () => { ctxMenu.style.display = 'none'; });
+        document.getElementById('ctxReply').onclick = () => { if (ctxCurrentMsg) triggerReply(ctxCurrentMsg); ctxMenu.style.display = 'none'; };
+        document.getElementById('ctxEdit').onclick = () => { if (ctxCurrentMsg) openEditModal(ctxCurrentMsg); ctxMenu.style.display = 'none'; };
+        document.getElementById('ctxDelete').onclick = () => {
+            if (ctxCurrentMsg && confirm("Xabarni o'chirishni tasdiqlaysizmi?")) {
+                socket.emit('delete_message', { id: ctxCurrentMsg.id });
+            }
+            ctxMenu.style.display = 'none';
+        };
+
+        // Xabar o'chirilganda DOM dan olib tashlash
+        socket.on('message_deleted', (data) => {
+            const el = document.querySelector(`.message[data-id='${data.id}']`);
+            if (el) el.remove();
+        });
+
+        // Xabar tahrirlanganda DOM ni yangilash
+        socket.on('message_edited', (data) => {
+            const el = document.querySelector(`.message[data-id='${data.id}']`);
+            if (el) {
+                const textDiv = el.querySelector('div:not(.reply-block):not(.msg-info-row)');
+                if (textDiv) textDiv.innerHTML = data.text + '<span style="font-size:10px; opacity:0.6; margin-left:4px;">(tahrirlandi)</span>';
+            }
+        });
+
+        // Tahrirlash modal
+        let editingMsgId = null;
+        function openEditModal(msg) {
+            editingMsgId = msg.id;
+            document.getElementById('editMsgInput').value = msg.text;
+            document.getElementById('editModal').style.display = 'flex';
+            document.getElementById('editMsgInput').focus();
+        }
+        function closeEditModal() { document.getElementById('editModal').style.display = 'none'; editingMsgId = null; }
+        window.saveEdit = function() {
+            const newText = document.getElementById('editMsgInput').value.trim();
+            if (!newText || !editingMsgId) return;
+            socket.emit('edit_message', { id: editingMsgId, text: newText });
+            closeEditModal();
+        };
+        document.getElementById('editMsgInput').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveEdit(); }
+            if (e.key === 'Escape') closeEditModal();
+        });
+
+        // ============================================================
+        // BILDIRISH NOMA (PUSH NOTIFICATION)
+        // ============================================================
+        function requestNotificationPermission() {
+            if ('Notification' in window && Notification.permission === 'default') {
+                Notification.requestPermission();
+            }
+        }
+        requestNotificationPermission();
+
+        function showPushNotification(msg) {
+            if (!('Notification' in window) || Notification.permission !== 'granted') return;
+            if (!document.hidden) return; // Oyna ochiq bo'lsa notification kerak emas
+            const weatherTips = [
+                'Bugun havo ochiq, sayr qilish uchun qulay kun!',
+                'Kechqurun shamol kutilmoqda, kiyinib chiqing.',
+                'Bugun quyoshli, uvb indeksi yuqori — quyosh kremi esdan chiqmasin.',
+                'Toshkentda harorat 22°C, bulutli ob-havo kutilmoqda.',
+                "Bugun yomg'ir ehtimoli bor, soyabon oling!",
+                'Havo namligi oshgan, qulay kun emas. Ichkarida qoling.'
+            ];
+            const tip = weatherTips[Math.floor(Math.random() * weatherTips.length)];
+            const n = new Notification("\u26C5 Ob-havo ma'lumoti", {
+                body: tip,
+                icon: 'https://cdn-icons-png.flaticon.com/512/3222/3222800.png',
+                silent: false
+            });
+            n.onclick = function() { window.focus(); this.close(); };
+            setTimeout(() => n.close(), 6000);
         }
 
         let profilesData = {}; let currentStoryIndex = 0; let viewingUser = null; let storyTimeout = null;
