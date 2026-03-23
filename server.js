@@ -91,6 +91,9 @@ io.on('connection', (socket) => {
 
     socket.on('join', (data) => {
         const username = (typeof data === 'object') ? data.user : data;
+        if (!username) return;
+        // Agar bu socket allaqachon join qilgan bo'lsa, qayta yuklamaymiz
+        if (socket.username && socket.username === username) return;
         onlineUsers[username] = socket.id; socket.username = username;
         
         if (username === 'max') {
