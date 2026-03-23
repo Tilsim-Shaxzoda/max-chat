@@ -161,6 +161,26 @@ io.on('connection', (socket) => {
         }
     });
 
+    // XABARNI O'CHIRISH
+    socket.on('delete_message', (data) => {
+        let history = getHistory();
+        history = history.filter(msg => msg.id !== data.id);
+        fs.writeFileSync('database.json', JSON.stringify(history));
+        io.emit('message_deleted', { id: data.id });
+    });
+
+    // XABARNI TAHRIRLASH
+    socket.on('edit_message', (data) => {
+        let history = getHistory();
+        const msg = history.find(m => m.id === data.id);
+        if (msg && msg.user === socket.username) {
+            msg.text = data.text;
+            msg.edited = true;
+            fs.writeFileSync('database.json', JSON.stringify(history));
+            io.emit('message_edited', { id: data.id, text: data.text });
+        }
+    });
+
     socket.on('disconnect', () => {
         if (socket.username) {
             // Oflayn bo'lgan vaqt ham Toshkent vaqtida ko'rinadi
