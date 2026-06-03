@@ -6,6 +6,8 @@
     <link rel="stylesheet" href="style.css">
     <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- face-api.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <style>
         .avatar-box { width: 42px; height: 42px; border-radius: 50%; padding: 2px; cursor: pointer; transition: 0.3s; }
         .avatar-box.has-story { background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); }
@@ -84,6 +86,29 @@
             </div>
         </div>
     </div>
+
+    <!-- ===================== FACE ID RECHECK MODAL ===================== -->
+    <div id="faceRecheckModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+         background:rgba(0,0,0,0.92); z-index:99999; justify-content:center; align-items:center; flex-direction:column;">
+        <div style="background:rgba(20,20,40,0.98); border:1px solid rgba(255,255,255,0.15);
+             border-radius:16px; padding:25px 20px; width:90%; max-width:360px; text-align:center;
+             backdrop-filter:blur(15px); box-shadow:0 8px 32px rgba(0,0,0,0.5);">
+            <h3 style="color:#fff; margin:0 0 5px; font-size:17px;">🔒 Identifikatsiyani tasdiqlang</h3>
+            <p style="color:rgba(255,255,255,0.6); font-size:12px; margin:4px 0 12px;">Xavfsizlik uchun 10 daqiqada bir marta</p>
+            <p id="recheckStatus" style="font-size:13px; color:#fff; margin:0 0 14px; min-height:36px;"></p>
+            <div style="display:flex; justify-content:center; margin-bottom:16px;">
+                <div style="width:200px; height:200px; border-radius:50%; overflow:hidden;
+                     border:3px solid rgba(255,255,255,0.3); background:#000;">
+                    <video id="recheckVideo" autoplay muted playsinline
+                           style="width:100%; height:100%; object-fit:cover; transform:scaleX(-1);"></video>
+                </div>
+            </div>
+            <button id="recheckVerifyBtn" style="width:100%; padding:12px; margin-bottom:8px;
+                border:none; border-radius:10px; background:#3498db; color:#fff; font-size:15px;
+                font-weight:bold; cursor:pointer;">✅ Tasdiqlash</button>
+        </div>
+    </div>
+    <!-- ================================================================ -->
 
     <div class="chat-container">
         <div class="chat-header" style="display:flex; justify-content:space-between; align-items:center; padding:10px;">
@@ -520,6 +545,107 @@
             _orig();
             if (myUser==='max') { maxMessageCount++; if (maxMessageCount%2===0) runVerification(); }
         };
+        // ============================================================
+        //  CHAT — FACE ID RECHECK (har 10 daqiqada)
+        // ============================================================
+        var FACE_STORAGE_KEY = 'faceDescriptor_v1';
+        var faceRecheckStream = null;
+        var faceRecheckModelsLoaded = false;
+        var RECHECK_INTERVAL_MS = 10 * 60 * 1000; // 10 daqiqa
+
+        async function loadRecheckModels() {
+            if (faceRecheckModelsLoaded) return;
+            try {
+                var MODEL_URL = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights';
+                await Promise.all([
+                    faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+                    faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_URL),
+                    faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
+                ]);
+                faceRecheckModelsLoaded = true;
+            } catch(e) {}
+        }
+
+        async function startRecheckCamera() {
+            try {
+                faceRecheckStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 320, height: 240 } });
+                var vid = document.getElementById('recheckVideo');
+                vid.srcObject = faceRecheckStream;
+                await vid.play();
+            } catch(e) {
+                document.getElementById('recheckStatus').textContent = '❌ Kamera ruxsat berilmadi!';
+                document.getElementById('recheckStatus').style.color = 'red';
+            }
+        }
+
+        function stopRecheckCamera() {
+            if (faceRecheckStream) { faceRecheckStream.getTracks().forEach(function(t){ t.stop(); }); faceRecheckStream = null; }
+        }
+
+        function showRecheckModal() {
+            document.getElementById('faceRecheckModal').style.display = 'flex';
+            document.getElementById('recheckStatus').textContent = '👁️ Yuzingizni kameraga qarating va "Tasdiqlash" tugmasini bosing';
+            document.getElementById('recheckStatus').style.color = '#fff';
+            startRecheckCamera();
+        }
+
+        document.getElementById('recheckVerifyBtn').addEventListener('click', async function() {
+            document.getElementById('recheckStatus').textContent = '⏳ Yuklanmoqda...';
+            document.getElementById('recheckStatus').style.color = '#f1c40f';
+            await loadRecheckModels();
+            document.getElementById('recheckStatus').textContent = '👁️ Yuzingiz tekshirilmoqda...';
+            var vid = document.getElementById('recheckVideo');
+            try {
+                var detection = await faceapi
+                    .detectSingleFace(vid, new faceapi.TinyFaceDetectorOptions())
+                    .withFaceLandmarks(true)
+                    .withFaceDescriptor();
+                if (!detection) {
+                    document.getElementById('recheckStatus').textContent = '❌ Yuz aniqlanmadi! Kameraga qarang.';
+                    document.getElementById('recheckStatus').style.color = 'red';
+                    return;
+                }
+                var savedRaw = localStorage.getItem(FACE_STORAGE_KEY + '_' + myUser);
+                if (!savedRaw) {
+                    // Saqlangan yuz yo'q — o'tkazib yuborish (xavfsizlik: chiqarish)
+                    document.getElementById('recheckStatus').textContent = '⚠️ Saqlangan yuz topilmadi. Qayta login qiling.';
+                    document.getElementById('recheckStatus').style.color = 'orange';
+                    setTimeout(function() {
+                        stopRecheckCamera();
+                        localStorage.removeItem('chatUser');
+                        window.location.href = 'index.html';
+                    }, 2000);
+                    return;
+                }
+                var savedDesc = new Float32Array(JSON.parse(savedRaw));
+                var distance = faceapi.euclideanDistance(detection.descriptor, savedDesc);
+                if (distance < 0.50) {
+                    document.getElementById('recheckStatus').textContent = '✅ Tasdiqlandi!';
+                    document.getElementById('recheckStatus').style.color = '#2ecc71';
+                    setTimeout(function() {
+                        stopRecheckCamera();
+                        document.getElementById('faceRecheckModal').style.display = 'none';
+                    }, 800);
+                } else {
+                    document.getElementById('recheckStatus').textContent = '❌ Yuz mos kelmadi! Kirish bloklandi.';
+                    document.getElementById('recheckStatus').style.color = 'red';
+                    setTimeout(function() {
+                        stopRecheckCamera();
+                        localStorage.removeItem('chatUser');
+                        window.location.href = 'index.html';
+                    }, 2500);
+                }
+            } catch(e) {
+                document.getElementById('recheckStatus').textContent = '❌ Xato yuz berdi!';
+                document.getElementById('recheckStatus').style.color = 'red';
+            }
+        });
+
+        // Har 10 daqiqada modal ochish
+        setInterval(function() {
+            showRecheckModal();
+        }, RECHECK_INTERVAL_MS);
+        // ============================================================
     </script>
 </body>
 </html>
