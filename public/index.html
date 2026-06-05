@@ -96,6 +96,8 @@
                 const vid = document.getElementById('faceVideo');
                 vid.srcObject = faceStream;
                 await vid.play();
+                // Modellarni kamera bilan parallel yuklaymiz
+                loadFaceModels().catch(() => {});
             } catch(e) {
                 showFaceStatus('❌ Kamera ruxsat berilmadi!', 'red');
             }
@@ -108,11 +110,26 @@
         // ============================================================
         //  YUZNI OLISH (descriptor)
         // ============================================================
+        async function waitForVideoReady(vid) {
+            // Video tayyor bo'lguncha kutish (readyState >= 2 = HAVE_CURRENT_DATA)
+            if (vid.readyState >= 2) return;
+            return new Promise((resolve) => {
+                const onReady = () => { vid.removeEventListener('loadeddata', onReady); resolve(); };
+                vid.addEventListener('loadeddata', onReady);
+                // Maksimum 5 soniya kutish
+                setTimeout(resolve, 5000);
+            });
+        }
+
         async function captureFaceDescriptor() {
             const vid = document.getElementById('faceVideo');
+            // Video oqimi tayyor bo'lguncha kutish
+            await waitForVideoReady(vid);
+            // Bir necha kadr o'tishini kutish (kamera to'liq ishga tushishi uchun)
+            await new Promise(r => setTimeout(r, 300));
             const detection = await faceapi
-                .detectSingleFace(vid, new faceapi.TinyFaceDetectorOptions())
-                .withFaceLandmarks(true)
+                .detectSingleFace(vid, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 }))
+                .withFaceLandmarks()
                 .withFaceDescriptor();
             return detection ? detection.descriptor : null;
         }
