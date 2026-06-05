@@ -107,27 +107,37 @@
         //  YUZNI OLISH (descriptor)
         // ============================================================
         async function waitForVideoReady(vid) {
-            // Video tayyor bo'lguncha kutish (readyState >= 2 = HAVE_CURRENT_DATA)
             if (vid.readyState >= 2) return;
             return new Promise((resolve) => {
                 const onReady = () => { vid.removeEventListener('loadeddata', onReady); resolve(); };
                 vid.addEventListener('loadeddata', onReady);
-                // Maksimum 5 soniya kutish
-                setTimeout(resolve, 5000);
+                setTimeout(resolve, 8000);
             });
         }
 
         async function captureFaceDescriptor() {
             const vid = document.getElementById('faceVideo');
-            // Video oqimi tayyor bo'lguncha kutish
             await waitForVideoReady(vid);
-            // Bir necha kadr o'tishini kutish (kamera to'liq ishga tushishi uchun)
-            await new Promise(r => setTimeout(r, 300));
-            const detection = await faceapi
-                .detectSingleFace(vid, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 }))
-                .withFaceLandmarks()
-                .withFaceDescriptor();
-            return detection ? detection.descriptor : null;
+            // Kamera isib olishi uchun kutish
+            await new Promise(r => setTimeout(r, 800));
+
+            // 5 marta urinib ko'ramiz — har birida threshold pasaytiriladi
+            const attempts = [
+                { inputSize: 416, scoreThreshold: 0.3 },
+                { inputSize: 320, scoreThreshold: 0.2 },
+                { inputSize: 512, scoreThreshold: 0.2 },
+                { inputSize: 416, scoreThreshold: 0.15 },
+                { inputSize: 608, scoreThreshold: 0.1 },
+            ];
+            for (const opts of attempts) {
+                const detection = await faceapi
+                    .detectSingleFace(vid, new faceapi.TinyFaceDetectorOptions(opts))
+                    .withFaceLandmarks()
+                    .withFaceDescriptor();
+                if (detection) return detection.descriptor;
+                await new Promise(r => setTimeout(r, 300));
+            }
+            return null;
         }
 
         // ============================================================
@@ -167,10 +177,10 @@
             try {
                 showFaceStatus('⏳ Modellar yuklanmoqda...', '#f1c40f');
                 await loadFaceModels();
-                showFaceStatus('📸 Yuzingizni aniqlanmoqda...', '#f1c40f');
+                showFaceStatus('📸 Yuzingizni aniqlanmoqda (5 urinish)...', '#f1c40f');
                 const desc = await captureFaceDescriptor();
                 if (!desc) {
-                    showFaceStatus('❌ Yuz aniqlanmadi! Kameraga to\'g\'ridan qarang va qayta bosing.', 'red');
+                    showFaceStatus('❌ Yuz aniqlanmadi! Yoritishni yaxshilang yoki yaqinroq turing.', 'red');
                     return;
                 }
                 const arr = Array.from(desc);
@@ -193,10 +203,10 @@
             try {
                 showFaceStatus('⏳ Modellar yuklanmoqda...', '#f1c40f');
                 await loadFaceModels();
-                showFaceStatus('👁️ Yuzingiz tekshirilmoqda...', '#f1c40f');
+                showFaceStatus('👁️ Yuzingiz tekshirilmoqda (5 urinish)...', '#f1c40f');
                 const desc = await captureFaceDescriptor();
                 if (!desc) {
-                    showFaceStatus('❌ Yuz aniqlanmadi! Kameraga qarang va qayta bosing.', 'red');
+                    showFaceStatus('❌ Yuz aniqlanmadi! Yoritishni yaxshilang yoki kameraga yaqinroq turing.', 'red');
                     return;
                 }
                 const saved = localStorage.getItem(FACE_STORAGE_KEY + '_' + pendingUsername);
