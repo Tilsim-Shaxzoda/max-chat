@@ -76,8 +76,8 @@
             if (faceModelsLoaded) return;
             const MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js/weights';
             await Promise.all([
-                faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
-                faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_URL),
+                faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
+                faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
                 faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
             ]);
             faceModelsLoaded = true;
@@ -122,16 +122,11 @@
             await new Promise(r => setTimeout(r, 800));
 
             // 5 marta urinib ko'ramiz — har birida threshold pasaytiriladi
-            const attempts = [
-                { inputSize: 416, scoreThreshold: 0.3 },
-                { inputSize: 320, scoreThreshold: 0.2 },
-                { inputSize: 512, scoreThreshold: 0.2 },
-                { inputSize: 416, scoreThreshold: 0.15 },
-                { inputSize: 608, scoreThreshold: 0.1 },
-            ];
-            for (const opts of attempts) {
+
+            const thresholds = [0.3, 0.2, 0.15, 0.1, 0.05];
+            for (const minConfidence of thresholds) {
                 const detection = await faceapi
-                    .detectSingleFace(vid, new faceapi.TinyFaceDetectorOptions(opts))
+                    .detectSingleFace(vid, new faceapi.SsdMobilenetv1Options({ minConfidence }))
                     .withFaceLandmarks()
                     .withFaceDescriptor();
                 if (detection) return detection.descriptor;
