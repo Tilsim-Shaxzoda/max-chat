@@ -74,17 +74,13 @@
         // ============================================================
         async function loadFaceModels() {
             if (faceModelsLoaded) return;
-            try {
-                const MODEL_URL = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights';
-                await Promise.all([
-                    faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
-                    faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_URL),
-                    faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
-                ]);
-                faceModelsLoaded = true;
-            } catch(e) {
-                console.error('Modellar yuklanmadi:', e);
-            }
+            const MODEL_URL = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights';
+            await Promise.all([
+                faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+                faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_URL),
+                faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
+            ]);
+            faceModelsLoaded = true;
         }
 
         // ============================================================
@@ -168,54 +164,60 @@
         //  BIRINCHI KIRISH — YUZNI RO'YXATDAN O'TKAZISH
         // ============================================================
         document.getElementById('faceRegisterBtn').addEventListener('click', async () => {
-            showFaceStatus('⏳ Modellar yuklanmoqda...', '#f1c40f');
-            await loadFaceModels();
-            showFaceStatus('📸 Yuzingizni aniqlanmoqda...', '#f1c40f');
-            const desc = await captureFaceDescriptor();
-            if (!desc) {
-                showFaceStatus('❌ Yuz aniqlanmadi! Kameraga to\'g\'ridan qarang.', 'red');
-                return;
+            try {
+                showFaceStatus('⏳ Modellar yuklanmoqda...', '#f1c40f');
+                await loadFaceModels();
+                showFaceStatus('📸 Yuzingizni aniqlanmoqda...', '#f1c40f');
+                const desc = await captureFaceDescriptor();
+                if (!desc) {
+                    showFaceStatus('❌ Yuz aniqlanmadi! Kameraga to\'g\'ridan qarang va qayta bosing.', 'red');
+                    return;
+                }
+                const arr = Array.from(desc);
+                localStorage.setItem(FACE_STORAGE_KEY + '_' + pendingUsername, JSON.stringify(arr));
+                showFaceStatus('✅ Yuz muvaffaqiyatli saqlandi!', '#2ecc71');
+                setTimeout(() => {
+                    closeFaceModal();
+                    localStorage.setItem('chatUser', pendingUsername);
+                    window.location.href = '/chat.html';
+                }, 1200);
+            } catch(e) {
+                showFaceStatus('❌ Xatolik: ' + (e.message || e), 'red');
             }
-            // Descriptor ni localStorage ga saqlash
-            const arr = Array.from(desc);
-            localStorage.setItem(FACE_STORAGE_KEY + '_' + pendingUsername, JSON.stringify(arr));
-            showFaceStatus('✅ Yuz muvaffaqiyatli saqlandi!', '#2ecc71');
-            setTimeout(() => {
-                closeFaceModal();
-                localStorage.setItem('chatUser', pendingUsername);
-                window.location.href = '/chat.html';
-            }, 1200);
         });
 
         // ============================================================
         //  TASDIQLASH — SAQLANGAN YUZ BILAN SOLISHTIRISH
         // ============================================================
         document.getElementById('faceVerifyBtn').addEventListener('click', async () => {
-            showFaceStatus('⏳ Modellar yuklanmoqda...', '#f1c40f');
-            await loadFaceModels();
-            showFaceStatus('👁️ Yuzingiz tekshirilmoqda...', '#f1c40f');
-            const desc = await captureFaceDescriptor();
-            if (!desc) {
-                showFaceStatus('❌ Yuz aniqlanmadi! Kameraga qarang.', 'red');
-                return;
-            }
-            const saved = localStorage.getItem(FACE_STORAGE_KEY + '_' + pendingUsername);
-            if (!saved) {
-                showFaceStatus('⚠️ Saqlangan yuz topilmadi, qayta kiriting.', 'orange');
-                return;
-            }
-            const savedDesc = new Float32Array(JSON.parse(saved));
-            const distance = faceapi.euclideanDistance(desc, savedDesc);
-            // 0.5 dan kichik bo'lsa — bir xil odam (qat'iyroq: 0.45)
-            if (distance < 0.50) {
-                showFaceStatus('✅ Tasdiqlandi! Kirish...', '#2ecc71');
-                setTimeout(() => {
-                    closeFaceModal();
-                    localStorage.setItem('chatUser', pendingUsername);
-                    window.location.href = '/chat.html';
-                }, 900);
-            } else {
-                showFaceStatus('❌ Yuz mos kelmadi! (' + distance.toFixed(2) + ')', 'red');
+            try {
+                showFaceStatus('⏳ Modellar yuklanmoqda...', '#f1c40f');
+                await loadFaceModels();
+                showFaceStatus('👁️ Yuzingiz tekshirilmoqda...', '#f1c40f');
+                const desc = await captureFaceDescriptor();
+                if (!desc) {
+                    showFaceStatus('❌ Yuz aniqlanmadi! Kameraga qarang va qayta bosing.', 'red');
+                    return;
+                }
+                const saved = localStorage.getItem(FACE_STORAGE_KEY + '_' + pendingUsername);
+                if (!saved) {
+                    showFaceStatus('⚠️ Saqlangan yuz topilmadi, qayta kiriting.', 'orange');
+                    return;
+                }
+                const savedDesc = new Float32Array(JSON.parse(saved));
+                const distance = faceapi.euclideanDistance(desc, savedDesc);
+                if (distance < 0.50) {
+                    showFaceStatus('✅ Tasdiqlandi! Kirish...', '#2ecc71');
+                    setTimeout(() => {
+                        closeFaceModal();
+                        localStorage.setItem('chatUser', pendingUsername);
+                        window.location.href = '/chat.html';
+                    }, 900);
+                } else {
+                    showFaceStatus('❌ Yuz mos kelmadi! (' + distance.toFixed(2) + ')', 'red');
+                }
+            } catch(e) {
+                showFaceStatus('❌ Xatolik: ' + (e.message || e), 'red');
             }
         });
 
